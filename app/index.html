@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ensayador de obras</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#15120f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Ensayador">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+:root{
+  /* Escenario a oscuras; tu parte con resaltador amarillo; rojo telón para el foco.
+     Una columna: pantallas apiladas (biblioteca, revisión, ensayo) con consola fija abajo al ensayar. */
+  --bg:#15120f;
+  --panel:#1f1b17;
+  --ink:#f1ebe0;
+  --mute:#a1988c;
+  --rule:#35302a;
+  --red:#e2432c;
+  --marker:#ffe45c;
+  --ok:#7fd08f;
+  --display:"Alfa Slab One", Rockwell, "Roboto Slab", Georgia, serif;
+  --body:"Literata", Georgia, "Times New Roman", serif;
+  --ui:"Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink)}
+body{display:flex;flex-direction:column;font-family:var(--ui);-webkit-tap-highlight-color:transparent;overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,label:focus-within{outline:2px solid var(--marker);outline-offset:2px}
+
+header{padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;border-bottom:1px solid var(--rule);display:flex;align-items:center;gap:10px;min-height:66px}
+.brand{font-family:var(--display);font-size:21px;line-height:1.05;color:var(--red);min-width:0}
+.brand small{display:block;font-family:var(--ui);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin-top:5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.where{margin-left:auto;text-align:right;font-size:13px;color:var(--mute);font-weight:600;line-height:1.3;font-variant-numeric:tabular-nums;min-width:0}
+.where b{color:var(--ink);font-weight:700}
+#where{max-width:48vw}
+#where b,#where #count{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#where br{display:none}
+.sq{width:44px;height:44px;border-radius:12px;border:1px solid var(--rule);background:var(--panel);display:grid;place-items:center;flex:none}
+.sq svg{width:22px;height:22px}
+
+.screen{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0 16px 32px}
+.wrap{max-width:640px;margin:0 auto}
+h2{font-family:var(--display);font-weight:400;color:var(--ink);font-size:24px;margin:22px 0 6px;text-wrap:balance}
+h4{font-weight:700;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin:26px 0 10px}
+.lead{font-family:var(--body);font-size:16px;line-height:1.55;color:var(--ink);margin:0 0 18px;max-width:60ch}
+.lead em{color:var(--marker);font-style:normal}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.big{border-radius:14px;border:1px solid var(--rule);background:#29231e;padding:16px 12px;font-weight:700;font-size:16px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;cursor:pointer}
+.big svg{width:26px;height:26px}
+.big.primary{background:var(--red);border-color:var(--red);color:#fff}
+.big small{font-weight:500;font-size:12.5px;opacity:.85}
+.prog{margin-top:12px;font-size:14px;color:var(--mute)}
+.prog .bar{margin-top:6px}
+.err{margin-top:12px;background:rgba(226,67,44,.14);border:1px solid rgba(226,67,44,.5);color:#ffc9bf;border-radius:12px;padding:10px 12px;font-size:14px;line-height:1.4}
+.obras{display:flex;flex-direction:column;gap:8px}
+.obra{display:flex;align-items:center;gap:10px;border:1px solid var(--rule);background:var(--panel);border-radius:14px;padding:12px}
+.obra .o-main{flex:1;min-width:0;text-align:left;background:none;border:0;padding:0}
+.obra .o-t{font-family:var(--body);font-weight:600;font-size:17px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.obra .o-s{font-size:13px;color:var(--mute);font-weight:600;display:block;margin-top:2px}
+.obra .o-s b{color:var(--marker);font-weight:700}
+.tag{font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--mute);border:1px solid var(--rule);border-radius:99px;padding:2px 7px;margin-left:6px;vertical-align:2px}
+.del{background:none;border:0;color:var(--mute);padding:8px;border-radius:10px}
+.del svg{width:20px;height:20px}
+.tools{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+.tools .btn{font-size:14px;padding:12px 8px;font-weight:600}
+.inst{margin-top:14px;font-size:14px;line-height:1.45;color:var(--ink);background:var(--panel);border:1px solid var(--rule);border-radius:12px;padding:12px 14px}
+.inst b{color:var(--marker);font-weight:700}
+.inst .btn{margin-top:10px;width:100%}
+.inst .x{float:right;background:none;border:0;color:var(--mute);font-size:16px;padding:0 0 4px 10px}
+.net{display:none;margin:12px 0 0;font-size:13px;color:var(--mute)}
+html.offline .net{display:block}
+.foot{font-size:13px;color:var(--mute);line-height:1.45;margin-top:22px}
+
+/* revisión */
+.stats{display:flex;gap:8px;flex-wrap:wrap}
+.stat{background:var(--panel);border:1px solid var(--rule);border-radius:12px;padding:8px 12px;font-weight:600;font-size:14px;color:var(--mute)}
+.stat b{color:var(--ink);font-size:18px;font-variant-numeric:tabular-nums;margin-right:4px}
+.tinput{width:100%;background:#29231e;border:1px solid var(--rule);border-radius:12px;padding:12px;font-family:var(--body);font-size:18px;font-weight:600}
+.notice{margin-top:10px;font-size:14px;line-height:1.4;color:#1b1712;background:var(--marker);border-radius:12px;padding:10px 12px;display:flex;gap:8px;align-items:flex-start}
+.notice button{margin-left:auto;background:none;border:0;font-weight:700;color:#1b1712;padding:0 2px}
+.crows{display:flex;flex-direction:column;border:1px solid var(--rule);border-radius:14px;overflow:hidden}
+.crow{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:8px 10px;border-top:1px solid var(--rule);background:var(--panel)}
+.crow:first-child{border-top:0}
+.crow .nm{font-weight:700;font-size:15px;min-width:0;overflow-wrap:anywhere}
+.crow .nm small{display:block;font-weight:500;color:var(--mute);font-size:12.5px}
+.crow.merged .nm{color:var(--mute)}
+.crow select{width:auto;max-width:42vw;padding:8px;font-size:13px;border-radius:10px}
+.me{width:40px;height:40px;border-radius:10px;border:1px solid var(--rule);background:#29231e;display:grid;place-items:center;font-weight:700}
+.me[aria-pressed="true"]{background:var(--marker);border-color:var(--marker);color:#1b1712}
+.me:disabled{opacity:.25}
+.me svg{width:20px;height:20px}
+.preview{border:1px solid var(--rule);border-radius:14px;padding:6px 4px;max-height:340px;overflow:auto}
+.editor{width:100%;min-height:55vh;background:#110e0c;border:1px solid var(--rule);border-radius:12px;padding:12px;font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--ink);resize:vertical}
+.help{font-size:13.5px;color:var(--mute);line-height:1.5;background:var(--panel);border-radius:12px;padding:10px 12px;margin-bottom:10px}
+.help code{color:var(--ink);font-size:12.5px;background:#29231e;padding:1px 4px;border-radius:4px}
+.row2{display:grid;grid-template-columns:1fr 1.4fr;gap:10px;margin-top:18px}
+.btn{border-radius:12px;border:1px solid var(--rule);background:#29231e;padding:14px 10px;font-weight:700;font-size:15px}
+.btn.primary{background:var(--red);border-color:var(--red);color:#fff}
+
+/* guion */
+.script{display:flex;flex-direction:column;gap:2px;padding-top:6px}
+.act{font-family:var(--display);color:var(--red);font-size:21px;margin:22px 0 2px;padding:0 10px;text-wrap:balance}
+.scene{margin:14px 0 4px;padding:12px 10px 4px;border-top:1px solid var(--rule)}
+.scene h3{font-weight:700;letter-spacing:.14em;font-size:13px;margin:0;text-transform:uppercase}
+.scene p{margin:4px 0 0;font-size:13px;color:var(--mute);line-height:1.35}
+.it{padding:8px 10px;border-radius:10px;border-left:3px solid transparent;transition:opacity .25s,background .25s;cursor:pointer}
+.ln .who{font-weight:700;font-size:12.5px;letter-spacing:.1em;color:var(--mute);text-transform:uppercase;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.ln .who i{text-transform:none;letter-spacing:0;font-weight:500}
+.ln .tx{font-family:var(--body);font-size:17.5px;line-height:1.55;margin-top:2px;max-width:65ch}
+.ln.mine .who{color:var(--marker)}
+.ln.mine .tx .s{background:var(--marker);color:#1b1712;-webkit-box-decoration-break:clone;box-decoration-break:clone;padding:1px 3px;border-radius:2px}
+.tx .d{font-style:italic;color:var(--mute);font-size:.86em}
+.tx .d.g{font-style:normal}
+.w .f,.w .r{transition:background .2s,color .2s}
+.w.hid .f,.w.hid .r,.w.ini .r{color:transparent;background:rgba(27,23,18,.2);border-radius:2px}
+.w.got{text-decoration:underline 2px var(--red);text-underline-offset:3px}
+.badge{font-size:11px;letter-spacing:.08em;padding:1px 6px;border-radius:99px;font-weight:700}
+.badge.ok{background:rgba(127,208,143,.16);color:var(--ok)}
+.badge.help{background:rgba(255,228,92,.14);color:var(--marker)}
+.dir{font-family:var(--body);font-style:italic;color:var(--mute);font-size:15px;padding-left:24px}
+.note{font-size:14px;color:var(--mute);padding-left:24px;font-family:var(--body)}
+.gap{text-align:center;color:var(--mute);font-size:13px;letter-spacing:.08em;padding:12px}
+body.running .it{opacity:.4}
+body.running .it.cur,.it.cur{opacity:1;background:var(--panel);border-left-color:var(--red)}
+.it.cur.mine{border-left-color:var(--marker)}
+.it.start{border-left-color:var(--mute);background:rgba(255,255,255,.03)}
+
+/* consola */
+.dock{border-top:1px solid var(--rule);background:var(--panel);padding:10px 16px calc(env(safe-area-inset-bottom) + 12px)}
+/* deja lugar para el cartel 'Powered by Netlify' que Netlify pega abajo a la derecha */
+html.netlify .dock{padding-bottom:calc(env(safe-area-inset-bottom) + 68px)}
+.status{display:flex;align-items:center;gap:10px;min-height:26px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--mute);flex:none}
+.dot.speak{background:var(--red)}
+.dot.listen{background:var(--marker);animation:pulse 1s ease-in-out infinite}
+.dot.wait{background:var(--marker)}
+@keyframes pulse{50%{transform:scale(1.5);opacity:.6}}
+.stxt{font-weight:600;font-size:15.5px;line-height:1.25;flex:1;min-width:0}
+.stxt small{display:block;font-weight:500;color:var(--mute);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill{border:1px solid var(--rule);background:#29231e;border-radius:99px;padding:7px 14px;font-weight:700;font-size:13px;flex:none}
+.heard{font-family:var(--body);font-style:italic;font-size:14px;color:var(--mute);min-height:20px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar{height:4px;background:var(--rule);border-radius:2px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;width:0;background:var(--marker);transition:width .2s}
+.ctrls{display:grid;grid-template-columns:1fr 1fr 1.7fr 1fr 1fr;gap:8px;margin-top:10px}
+.c{min-height:56px;border-radius:12px;border:1px solid var(--rule);background:#29231e;font-weight:600;font-size:12.5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:4px}
+.c svg{width:20px;height:20px}
+.c.main{background:var(--red);border-color:var(--red);color:#fff;font-size:16px;font-weight:700}
+.c.main.turn{background:var(--marker);border-color:var(--marker);color:#1b1712}
+.c:disabled{opacity:.3;cursor:default}
+
+/* ajustes */
+.sheet{position:fixed;inset:0;background:rgba(10,8,6,.72);display:flex;align-items:flex-end;justify-content:center;z-index:10}
+.sheet-in{background:var(--panel);width:100%;max-width:640px;max-height:92%;overflow-y:auto;border-radius:18px 18px 0 0;padding:18px 16px calc(env(safe-area-inset-bottom) + 18px);display:flex;flex-direction:column;gap:20px;border-top:3px solid var(--red)}
+.sheet h2{color:var(--red);margin:0}
+.field{display:flex;flex-direction:column;gap:8px}
+.field > label,.field > .lbl{font-weight:700;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.field .hint{font-size:13px;color:var(--mute);line-height:1.35}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--rule);background:#29231e;border-radius:99px;padding:8px 12px;font-weight:600;font-size:14.5px;display:flex;gap:6px;align-items:baseline}
+.chip span{font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums}
+.chip[aria-pressed="true"]{background:var(--marker);border-color:var(--marker);color:#1b1712}
+.chip[aria-pressed="true"] span{color:#5a4d1a}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;border:1px solid var(--rule);border-radius:12px;overflow:hidden}
+.seg button{background:#29231e;border:0;border-left:1px solid var(--rule);padding:11px 6px;font-weight:600;font-size:14px}
+.seg button:first-child{border-left:0}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#1b1712}
+select{background:#29231e;color:var(--ink);border:1px solid var(--rule);border-radius:12px;padding:12px;font:600 15px var(--ui);width:100%}
+input[type=range]{width:100%;accent-color:var(--red)}
+.tog{display:flex;align-items:center;justify-content:space-between;gap:12px;font-weight:600;font-size:15px}
+.tog input{width:22px;height:22px;accent-color:var(--red)}
+.done{background:var(--red);color:#fff;border:0;border-radius:12px;padding:14px;font-weight:700;font-size:16px}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<script>if(/netlify\.app$/i.test(location.hostname))document.documentElement.classList.add('netlify')</script>
+<header>
+  <button class="sq" id="homeBtn" aria-label="Volver a mis obras" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <div class="brand" id="brand">Ensayador<small id="brandSub">Aprendé tu letra</small></div>
+  <div class="where" id="where" hidden><b id="whereB"></b><br><span id="count"></span></div>
+  <button class="sq" id="openSet" aria-label="Ajustes del ensayo" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button>
+</header>
+
+<!-- BIBLIOTECA -->
+<section class="screen" id="lib"><div class="wrap">
+  <h2>Cargá una obra</h2>
+  <p class="lead">Subí el PDF del guion. Detecto <em>personajes, escenas y acotaciones</em>, elegís tu papel y ensayás: el teléfono lee a los demás y espera tu parte.</p>
+  <div class="actions">
+    <label class="big primary" for="pdfIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M12 18v-6M9 15l3-3 3 3"/></svg>Importar PDF<small>o un .txt</small></label>
+    <button class="big" id="pasteBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M8 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/></svg>Pegar texto<small>desde Word o un mail</small></button>
+  </div>
+  <input type="file" id="pdfIn" class="vh" accept="application/pdf,.pdf,text/plain,.txt">
+  <div class="prog" id="prog" hidden><span id="progTxt">Leyendo…</span><div class="bar"><i id="progBar"></i></div></div>
+  <div class="err" id="libErr" hidden></div>
+  <div class="inst" id="instIOS" hidden><button class="x" id="instIOSx" aria-label="Cerrar">✕</button><b>Instalala en tu iPhone:</b> tocá el botón <b>Compartir</b> (el cuadrado con la flecha) y elegí <b>Agregar a inicio</b>. Así abre a pantalla completa y funciona sin internet.</div>
+  <div class="inst" id="instAnd" hidden><b>Instalala como app:</b> queda en tu pantalla de inicio y funciona sin internet.<button class="btn primary" id="instAndBtn">Instalar app</button></div>
+  <p class="net" id="netMsg">Sin conexión: podés leer PDFs y ensayar igual. Solo el modo “Te escucho” necesita internet.</p>
+  <h4>Tus obras</h4>
+  <div class="obras" id="obras"></div>
+  <div class="tools"><button class="btn" id="expBtn">Guardar copia</button><button class="btn" id="impBtn">Restaurar copia</button></div>
+  <input type="file" id="impIn" class="vh" accept="application/json,.json">
+  <p class="foot">Las obras quedan guardadas solo en este teléfono o navegador: usá “Guardar copia” para no perderlas si cambiás de equipo. Si el PDF es una foto escaneada no tiene texto para leer: exportalo con texto o pegá el texto.</p>
+</div></section>
+
+<!-- PEGAR -->
+<section class="screen" id="paste" hidden><div class="wrap">
+  <h2>Pegar texto</h2>
+  <div class="field" style="margin-bottom:12px"><label for="pasteTitle">Nombre de la obra</label><input class="tinput" id="pasteTitle" placeholder="Por ejemplo: La casa de Bernarda Alba"></div>
+  <textarea class="editor" id="pasteTxt" placeholder="Pegá acá el guion. Funciona con cualquiera de estos formatos:&#10;&#10;JUAN. Hola, ¿qué tal?&#10;María: Bien, ¿y vos?&#10;&#10;PEDRO&#10;Yo también estoy.&#10;&#10;(Sale.)"></textarea>
+  <div class="row2"><button class="btn" id="pasteCancel">Cancelar</button><button class="btn primary" id="pasteGo">Analizar</button></div>
+</div></section>
+
+<!-- REVISIÓN -->
+<section class="screen" id="review" hidden><div class="wrap">
+  <h2>Revisá lo que encontré</h2>
+  <div class="field"><label for="rTitle">Nombre de la obra</label><input class="tinput" id="rTitle"></div>
+  <h4>Resumen</h4>
+  <div class="stats" id="rStats"></div>
+  <div class="notice" id="rMarked" hidden></div>
+  <h4>¿Quién sos?</h4>
+  <p class="lead" style="font-size:14.5px;margin-bottom:10px">Tocá tu personaje (podés marcar más de uno). Si un mismo personaje aparece con dos nombres, por ejemplo <em>BORDURA</em> y <em>CAPITÁN BORDURA</em>, unilos con el menú de la derecha.</p>
+  <div class="crows" id="rChars"></div>
+  <h4>Así se ve el guion</h4>
+  <div class="preview"><div class="script" id="rPreview"></div></div>
+  <div class="row2"><button class="btn" id="rEdit">Corregir texto</button><button class="btn primary" id="rGo">Guardar y ensayar</button></div>
+</div></section>
+
+<!-- EDITOR -->
+<section class="screen" id="edit" hidden><div class="wrap">
+  <h2>Corregir texto</h2>
+  <div class="help">Cada renglón es una cosa:<br>
+  <code>NOMBRE: texto</code> parlamento · <code>NOMBRE (aparte): texto</code> con indicación<br>
+  <code>(Sale.)</code> acotación · <code>ACTO …</code> / <code>ESCENA …</code> títulos · <code>[En el palacio]</code> datos de la escena<br>
+  Un renglón sin nombre se suma al parlamento de arriba. Dentro del texto, lo que va entre paréntesis no se dice.</div>
+  <textarea class="editor" id="edTxt" spellcheck="false"></textarea>
+  <div class="row2"><button class="btn" id="edCancel">Cancelar</button><button class="btn primary" id="edGo">Volver a analizar</button></div>
+</div></section>
+
+<!-- ENSAYO -->
+<section class="screen" id="play" hidden><div class="wrap"><div class="script" id="script"></div></div></section>
+<div class="dock" id="dock" hidden><div class="wrap">
+  <div class="status">
+    <span class="dot" id="dot"></span>
+    <div class="stxt" id="stxt">Listo para ensayar<small>Tocá una línea para empezar desde ahí</small></div>
+    <button class="pill" id="pause" hidden>Pausar</button>
+  </div>
+  <div class="heard" id="heard"></div>
+  <div class="bar"><i id="bar"></i></div>
+  <div class="ctrls">
+    <button class="c" id="back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.5-5.8"/><path d="M4 4v4h4"/></svg>Repetir</button>
+    <button class="c" id="hint" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg>Pista</button>
+    <button class="c main" id="mainBtn">Empezar</button>
+    <button class="c" id="peek" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Ver línea</button>
+    <button class="c" id="skip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5l8 7-8 7z"/><path d="M17 5v14"/></svg>Saltar</button>
+  </div>
+  <div class="notice" id="notice" hidden><span id="noticeTxt"></span><button id="noticeX" aria-label="Cerrar aviso">✕</button></div>
+</div></div>
+
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="setTitle">
+  <div class="sheet-in">
+    <h2 id="setTitle">Ajustes</h2>
+    <div class="field"><span class="lbl">Tu personaje</span><div class="chips" id="chips"></div></div>
+    <div class="field"><label for="startSel">Empezar desde</label><select id="startSel"></select></div>
+    <div class="field"><span class="lbl">Tus líneas se ven</span>
+      <div class="seg" id="segHide"><button data-v="hidden">Tapadas</button><button data-v="initials">Iniciales</button><button data-v="visible">Enteras</button></div>
+      <span class="hint">Las palabras que vas diciendo se destapan solas.</span></div>
+    <div class="field"><span class="lbl">En tu turno</span>
+      <div class="seg" id="segAdv"><button data-v="mic">Te escucho</button><button data-v="time">Espero y sigo</button><button data-v="tap">Tocás vos</button></div>
+      <span class="hint" id="advHint"></span></div>
+    <div class="field" id="strictField"><span class="lbl">Qué tan exacto tenés que decirlo</span>
+      <div class="seg" id="segStrict"><button data-v="0.5">Más o menos</button><button data-v="0.7">Bastante</button><button data-v="0.85">Al pie de la letra</button></div></div>
+    <div class="field"><label for="langSel">Idioma de la obra</label>
+      <select id="langSel"><option value="es-AR">Español (Argentina)</option><option value="es-ES">Español (España)</option><option value="es-MX">Español (México)</option><option value="en-US">English</option><option value="pt-BR">Português</option><option value="it-IT">Italiano</option><option value="fr-FR">Français</option></select></div>
+    <div class="field"><label for="rate">Velocidad de las otras voces <span id="rateV"></span></label><input type="range" id="rate" min="0.7" max="1.5" step="0.05"></div>
+    <div class="field"><label for="voiceSel">Voz</label><select id="voiceSel"></select></div>
+    <label class="tog" for="readDirs">Leer las acotaciones en voz alta<input type="checkbox" id="readDirs"></label>
+    <label class="tog" for="onlyMine">Saltar las escenas donde no estás<input type="checkbox" id="onlyMine"></label>
+    <button class="done" id="closeSet">Listo</button>
+  </div>
+</div>
+
+<script>
+/* ===== Ensayador: lectura de PDF y análisis del guion =====
+   Funciones puras + extracción con PDF.js. Se incrusta tal cual en la página. */
+const Core = (() => {
+
+const UP = 'A-ZÁÉÍÓÚÑÜÀÈÌÒÙÂÊÎÔÛÇ';
+const LOW = 'a-záéíóúñüàèìòùâêîôûç';
+const HEAD_RE = /^((PRIMER|SEGUNDO|TERCER|CUARTO|QUINTO|[UÚ]NICO)\s+(ACTO|CUADRO)|ACTO|ESCENA|CUADRO|JORNADA|PR[OÓ]LOGO|EP[IÍ]LOGO|PRIMERA PARTE|SEGUNDA PARTE|TERCERA PARTE|PARTE|FIN\b|TEL[OÓ]N\b|INTERMEDIO|ESC\.)/i;
+const ACT_LEVEL = /^((PRIMER|SEGUNDO|TERCER|CUARTO|QUINTO|[UÚ]NICO)\s+ACTO|ACTO|JORNADA|PR[OÓ]LOGO|EP[IÍ]LOGO|PRIMERA PARTE|SEGUNDA PARTE|TERCERA PARTE|PARTE|FIN\b|TEL[OÓ]N\b|INTERMEDIO)/i;
+const NAME_CORE = `[${UP}][${UP}0-9 '’\\-]{0,38}[${UP}0-9]|[${UP}]`;
+const INLINE_RE = new RegExp(`^(${NAME_CORE})\\s*(?:\\(([^)]{0,300})\\))?\\s*(?:,\\s*([^.:]{1,60}?))?\\s*(?:\\.|:|—|–)\\s*(.*)$`);
+const TITLE_RE = new RegExp(`^([${UP}][${LOW}]+(?:\\s+(?:de|del|la|el|y|[${UP}][${LOW}]+)){0,3})\\s*(?:\\(([^)]{0,300})\\))?\\s*(?::|\\.\\s*[-–—]+)\\s*(.*)$`);
+const NAMEPAREN_RE = /^([^()]{1,40}?)\s*\(([^)]{0,300})\)\s*[:.]?\s*(.*)$/;
+const isUpperLine = s => /[A-ZÁÉÍÓÚÑ]/.test(s) && !new RegExp(`[${LOW}]`).test(s.replace(/\([^)]*\)/g, ''));
+const median = a => { if(!a.length) return 0; const b=[...a].sort((x,y)=>x-y); return b[Math.floor(b.length/2)]; };
+const clean = s => s.replace(/\s+/g, ' ').trim();
+
+/* ---------- 1. PDF → renglones con posición ---------- */
+async function extractPDF(pdfjsLib, data, onProgress){
+  const doc = await pdfjsLib.getDocument({data, disableFontFace:true, isEvalSupported:false}).promise;
+  let title = '';
+  try { const md = await doc.getMetadata(); title = (md && md.info && md.info.Title) || ''; } catch(e) {}
+  const pages = [];
+  for(let n=1; n<=doc.numPages; n++){
+    const page = await doc.getPage(n);
+    const vp = page.getViewport({scale:1});
+    const hl = [];
+    let fontNames = {};
+    try {
+      const ops = await page.getOperatorList();
+      collectHighlightRects(pdfjsLib.OPS, ops, hl);
+    } catch(e) {}
+    try {
+      const ann = await page.getAnnotations();
+      ann.forEach(a => { if(/Highlight|Underline|Squiggly/i.test(a.subtype) && a.rect) hl.push(normRect(a.rect)); });
+    } catch(e) {}
+    const tc = await page.getTextContent();
+    const items = [];
+    tc.items.forEach(it => {
+      if(!it.str) return;
+      const t = it.transform;
+      const size = Math.abs(t[3]) || Math.hypot(t[2], t[3]) || it.height || 10;
+      if(!(it.fontName in fontNames)){
+        let nm = '';
+        try { const f = page.commonObjs.get(it.fontName); nm = (f && (f.name || f.loadedName)) || ''; } catch(e) {}
+        const fam = (tc.styles[it.fontName] && tc.styles[it.fontName].fontFamily) || '';
+        fontNames[it.fontName] = nm + ' ' + fam;
+      }
+      const fn = fontNames[it.fontName];
+      const x = t[4], y = t[5], w = it.width;
+      const cx = x + w/2, cy = y + size*0.3;
+      items.push({s:it.str, x, y, w, size, it:/italic|oblique|-it\b|cursiv/i.test(fn), b:/bold|black|heavy|-bd\b/i.test(fn),
+                  hl: hl.some(r => cx>=r[0] && cx<=r[2] && cy>=r[1] && cy<=r[3])});
+    });
+    pages.push({w:vp.width, h:vp.height, lines: groupLines(items)});
+    if(onProgress) onProgress(n, doc.numPages);
+  }
+  return {title, pages, numPages: doc.numPages};
+}
+function normRect(r){ return [Math.min(r[0],r[2]), Math.min(r[1],r[3]), Math.max(r[0],r[2]), Math.max(r[1],r[3])]; }
+function mul(m, n){ return [m[0]*n[0]+m[2]*n[1], m[1]*n[0]+m[3]*n[1], m[0]*n[2]+m[2]*n[3], m[1]*n[2]+m[3]*n[3], m[0]*n[4]+m[2]*n[5]+m[4], m[1]*n[4]+m[3]*n[5]+m[5]]; }
+function colorOf(a){
+  if(typeof a === 'string'){ const h=a.replace('#',''); return [parseInt(h.slice(0,2),16)/255, parseInt(h.slice(2,4),16)/255, parseInt(h.slice(4,6),16)/255]; }
+  if(a && a.length>=3){ const v=[a[0],a[1],a[2]].map(Number); return v.some(x=>x>1) ? v.map(x=>x/255) : v; }
+  if(a && a[0]!=null){ const v=[a[0],a[1],a[2]].map(Number); return v.some(x=>x>1) ? v.map(x=>x/255) : v; }
+  return null;
+}
+function isMarkerColor(c){
+  if(!c) return false;
+  const mx=Math.max(...c), mn=Math.min(...c);
+  return mx > .75 && (mx-mn) > .25 && (mx+mn)/2 > .55;
+}
+function collectHighlightRects(OPS, ops, out){
+  let ctm=[1,0,0,1,0,0]; const stack=[]; let fill=null, rects=[];
+  for(let i=0;i<ops.fnArray.length;i++){
+    const fn=ops.fnArray[i], a=ops.argsArray[i];
+    if(fn===OPS.save) stack.push([ctm, fill]);
+    else if(fn===OPS.restore){ const s=stack.pop(); if(s){ ctm=s[0]; fill=s[1]; } }
+    else if(fn===OPS.transform) ctm = mul(ctm, a);
+    else if(fn===OPS.setFillRGBColor || fn===OPS.setFillColor || fn===OPS.setFillColorN) fill = colorOf(a && a.length===1 ? a[0] : a);
+    else if(fn===OPS.setFillGray) fill = null;
+    else if(fn===OPS.constructPath){
+      rects=[]; const sub=a[0], co=a[1]; let k=0;
+      for(const op of sub){
+        if(op===OPS.rectangle){ const [x,y,w,h]=co.slice(k,k+4); k+=4;
+          const p1=[ctm[0]*x+ctm[2]*y+ctm[4], ctm[1]*x+ctm[3]*y+ctm[5]], p2=[ctm[0]*(x+w)+ctm[2]*(y+h)+ctm[4], ctm[1]*(x+w)+ctm[3]*(y+h)+ctm[5]];
+          rects.push(normRect([p1[0],p1[1],p2[0],p2[1]])); }
+        else if(op===OPS.moveTo || op===OPS.lineTo) k+=2;
+        else if(op===OPS.curveTo) k+=6; else if(op===OPS.curveTo2 || op===OPS.curveTo3) k+=4;
+      }
+    }
+    else if(fn===OPS.fill || fn===OPS.eoFill || fn===OPS.fillStroke || fn===OPS.eoFillStroke){
+      if(isMarkerColor(fill)) rects.forEach(r => { if((r[3]-r[1]) < 40) out.push(r); });
+      rects=[];
+    }
+  }
+}
+function groupLines(items){
+  items.sort((a,b) => (b.y - a.y) || (a.x - b.x));
+  const lines=[];
+  for(const it of items){
+    let L = lines.length ? lines[lines.length-1] : null;
+    if(!L || Math.abs(L.y - it.y) > Math.max(L.size, it.size)*0.45){
+      L = {y:it.y, size:it.size, items:[]}; lines.push(L);
+    }
+    L.items.push(it); L.size = Math.max(L.size, it.size);
+  }
+  return lines.map(L => {
+    const body = median(L.items.filter(i=>i.s.trim()).map(i=>i.size)) || L.size;
+    const its = L.items.filter(i => !(/^\d{1,3}$/.test(i.s.trim()) && i.size < body*0.8)).sort((a,b)=>a.x-b.x);
+    let t='', m='', prevEnd=null, chars=0, itc=0, hlc=0, bc=0;
+    for(const i of its){
+      if(prevEnd!=null && i.x - prevEnd > i.size*0.15 && !/\s$/.test(t) && !/^\s/.test(i.s)){ t+=' '; m+='0'; }
+      t += i.s; m += (i.it ? '1' : '0').repeat(i.s.length); prevEnd = i.x + i.w;
+      const n = i.s.replace(/\s/g,'').length; chars+=n; if(i.it) itc+=n; if(i.hl) hlc+=n; if(i.b) bc+=n;
+    }
+    // colapsar espacios manteniendo la máscara alineada
+    let tt='', mm='';
+    for(let k=0;k<t.length;k++){ const ch = /\s/.test(t[k]) ? ' ' : t[k]; if(ch===' ' && (tt==='' || tt.endsWith(' '))) continue; tt+=ch; mm+=m[k]; }
+    if(tt.endsWith(' ')){ tt=tt.slice(0,-1); mm=mm.slice(0,-1); }
+    const vis = its.filter(i=>i.s.trim());
+    return {t: tt, im: mm, x0: vis.length ? vis[0].x : 0, x1: its.length ? Math.max(...its.map(i=>i.x+i.w)) : 0, y:L.y, size:body,
+            it: chars ? itc/chars : 0, hl: chars ? hlc/chars : 0, b: chars ? bc/chars : 0};
+  }).filter(l => l.t);
+}
+
+function depthOf(t){ let d=0; for(const ch of t){ if(ch==='(' || ch==='[') d++; else if((ch===')' || ch===']') && d>0) d--; } return d; }
+// envuelve en paréntesis los tramos en cursiva que están fuera de paréntesis y parecen acotación
+function italToDirs(text, mask, depth){
+  if(!mask || mask.indexOf('1') < 0) return text;
+  let out='', k=0, d=depth||0;
+  while(k < text.length){
+    if(mask[k]==='1' && d===0 && text[k]!=='('){
+      let j=k; while(j<text.length && mask[j]==='1' && text[j]!=='(') j++;
+      const run = text.slice(k,j), core = run.trim();
+      const looks = /^[A-ZÁÉÍÓÚÑ¿¡]/.test(core) && (/[.)]$/.test(core) || core.split(/\s+/).length >= 3) && /[a-záéíóúñ]/i.test(core);
+      if(looks){ const lead = run.match(/^\s*/)[0], tail = run.match(/\s*$/)[0]; out += lead + '(' + core + ')' + tail; }
+      else out += run;
+      k = j; continue;
+    }
+    const ch = text[k]; if(ch==='(') d++; else if(ch===')' && d>0) d--;
+    out += ch; k++;
+  }
+  return out;
+}
+const U_ = ['cero','uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','once','doce','trece','catorce','quince','dieciseis','diecisiete','dieciocho','diecinueve','veinte','veintiuno','veintidos','veintitres','veinticuatro','veinticinco','veintiseis','veintisiete','veintiocho','veintinueve'];
+const D_ = ['','','','treinta','cuarenta','cincuenta','sesenta','setenta','ochenta','noventa'];
+const C_ = ['','ciento','doscientos','trescientos','cuatrocientos','quinientos','seiscientos','setecientos','ochocientos','novecientos'];
+function numEs(n){ if(n<30) return U_[n]; if(n<100) return D_[Math.floor(n/10)] + (n%10 ? ' y '+U_[n%10] : ''); if(n===100) return 'cien'; if(n<1000) return C_[Math.floor(n/100)] + (n%100 ? ' ' + numEs(n%100) : ''); return null; }
+const fold = n => n.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/([A-Z])[1l|]([A-Z])/g, '$1I$2');
+
+/* ---------- 2. renglones → texto normalizado ---------- */
+function linesToCanonical(pages){
+  // quitar encabezados/pies repetidos y números de página
+  const freq = {};
+  pages.forEach(p => { const seen=new Set(); p.lines.forEach(l => {
+    if(l.y > p.h*0.9 || l.y < p.h*0.1){ const k=l.t.replace(/\d+/g,'#'); if(!seen.has(k)){ seen.add(k); freq[k]=(freq[k]||0)+1; } }
+  }); });
+  const minRep = Math.max(3, Math.ceil(pages.length*0.4));
+  const all = [];
+  const bodySize = median(pages.flatMap(p => p.lines.map(l => l.size)));
+  const lowBody = pages.map(p => { const ys = p.lines.filter(l => l.size >= bodySize*0.95 && l.t.length > 8).map(l => l.y); return ys.length ? Math.min(...ys) : -1; });
+  pages.forEach((p, pi) => p.lines.forEach(l => {
+    if(/^[\[(]?\s*(p[aá]g(ina)?\.?\s*)?\d{1,4}\s*[\])]?$/i.test(l.t)) return;
+    const k=l.t.replace(/\d+/g,'#');
+    if((l.y > p.h*0.9 || l.y < p.h*0.1) && freq[k] >= minRep && pages.length >= 3) return;
+    if(l.size < bodySize*0.85 && /^\d/.test(l.t)) return;           // notas al pie
+    if(l.size < bodySize*0.9 && l.y < (lowBody[pi] ?? -1)) return;  // texto chico debajo del cuerpo
+    all.push(Object.assign({}, l, {pw:p.w, page:pi}));
+  }));
+  return classify(all, bodySize);
+}
+
+function textLines(raw){
+  // texto pegado: sin posiciones
+  return raw.replace(/\r/g,'').split('\n').map(t => ({t: clean(t), x0:0, x1:0, pw:0, size:12, it:0, hl:0, blank: !t.trim()}));
+}
+
+function matchSpeaker(t){
+  let m = t.match(INLINE_RE);
+  if(m && /[A-ZÁÉÍÓÚÑ]{2}/.test(m[1].replace(/\s/g,'')) || (m && m[1].length===1 && false)){
+    return {name: clean(m[1]), aside: clean([m[2],m[3]].filter(Boolean).join(', ')), rest: (m[4] || '').replace(/^[\s.–—-]+/, ''), kind:'inline'};
+  }
+  m = t.match(TITLE_RE);
+  if(m && m[1].split(' ').length <= 4) return {name: clean(m[1]), aside: clean(m[2]||''), rest: m[3]||'', kind:'title'};
+  return null;
+}
+
+function classify(L, bodySize){
+  const hasPos = L.some(l => l.pw);
+  const base = hasPos ? (() => { const c={}; L.forEach(l => { const k=Math.round(l.x0/2)*2; c[k]=(c[k]||0)+1; });
+    const need = Math.max(3, L.length*0.05);
+    const b = Object.entries(c).map(([k,n])=>[+k,n]).sort((a,b)=>a[0]-b[0]).find(([,n]) => n >= need);
+    return b ? b[0] : +Object.entries(c).sort((a,b)=>b[1]-a[1])[0][0]; })() : 0;
+  const right = hasPos ? median(L.map(l=>l.x1).filter(x=>x>base+100).sort((a,b)=>b-a).slice(0, Math.max(5, Math.floor(L.length/3)))) : 0;
+  const wrapped = (p) => hasPos && p && !p.blank && p.x1 > right - Math.max(25, (right-base)*0.12) && !/[.!?…»”")\]:]$/.test(p.t);
+  const centered = l => hasPos && l.x0 > base + 25 && (l.x1 - l.x0) < (right - base)*0.8 && Math.abs((l.x0+l.x1)/2 - l.pw/2) < l.pw*0.07;
+  const indented = l => hasPos && l.x0 > base + 6 && !centered(l);
+  const isCast = t => / \/ /.test(t) && (t.match(/:/g)||[]).length >= 2;
+  const isHead = (l) => HEAD_RE.test(l.t) && l.t.length < 70 && (isUpperLine(l.t) || centered(l) || !hasPos || l.b > 0.6 || /^[A-ZÁÉÍÓÚÑ]{4,}\b/.test(l.t));
+  const ROMAN_SCENE = /^([IVX]+\.[ivx]+)\b\.?\s*(.*)$/;
+
+  // 1ª pasada: candidatos a personaje
+  const cand = {};
+  const castWords = new Set();
+  const addC = (nm, kind) => { const c = cand[nm] || (cand[nm] = {n:0, rest:0, block:0, loose:0}); c[kind]++; };
+  L.forEach((l, i) => {
+    if(l.blank || isHead(l)) return;
+    if(isCast(l.t)){ l.t.split('/').forEach(x => { const n = clean(x.split(':')[0]); if(n) castWords.add(n.toUpperCase()); }); return; }
+    const prev = L[i-1];
+    const sp = matchSpeaker(l.t);
+    const lm = !sp && l.t.match(/^([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[a-záéíóúñ]+){1,2})\s*(?:\([^)]*\))?\s*(?::|\.\s*[-–—]+)\s*\S/);
+    if(lm && !wrapped(prev)) addC(lm[1], 'loose');
+    if(sp && !wrapped(prev)){ addC(sp.name, 'n'); if(sp.rest) addC(sp.name, 'rest'); else { const nx = L[i+1]; if(nx && !nx.blank && !isUpperLine(nx.t)) addC(sp.name, 'block'); } }
+    else if(isUpperLine(l.t) && l.t.length <= 45 && !/,/.test(l.t)){
+      const next = L[i+1];
+      if(next && !next.blank && !isUpperLine(next.t)){
+        const nm = clean(l.t.replace(/\([^)]*\)/g,'').replace(/^[¡¿"«]+/,'').replace(/[\s.:]+$/,''));
+        if(nm && nm.length >= 2) addC(nm, 'block');
+      }
+    }
+    if(isUpperLine(l.t) && /,| Y /.test(l.t)) l.t.split(/,|;| Y |\.| y /).forEach(w => { w=clean(w.replace(/\([^)]*\)/g,'')); if(w) castWords.add(w); });
+  });
+  const tot = k => Object.values(cand).reduce((s,c)=>s+c[k],0);
+  const blockStyle = tot('block') > tot('rest');
+  const speakers = new Set(Object.entries(cand).filter(([nm,c]) => {
+    if(/^(I|II|III|IV|V|VI|FIN|F I N|TELÓN|TELON|ACTO|ESCENA|NOTA|NOTAS|NOTA BENE)$/i.test(nm)) return false;
+    if(c.loose >= 3) return true;
+    return Math.max(c.n, c.block) >= 2 || c.n + c.block >= 3 || castWords.has(nm.toUpperCase()) || (c.rest >= 1 && nm.length >= 3) || (blockStyle && c.block >= 1 && nm.split(/\s+/).length <= 4);
+  }).map(([nm]) => nm));
+  const speakerFold = new Map([...speakers].map(n => [fold(n), n]));
+  const knownName = n => speakerFold.get(fold(clean(n))) || null;
+  // "Nombre (indicación) texto" sin dos puntos
+  const colonName = t => { const m = t.match(/^[¡¿"«]?([^:()]{1,40}?)\s*(?:\(([^)]*)\))?\s*:\s*(.*)$/); if(!m) return null; const n = knownName(m[1]); return n ? {name:n, aside:clean(m[2]||''), rest:m[3]||'', kind:'colon'} : null; };
+  const looksSpeakerLine = t => { const s2 = matchSpeaker(t); return !!((s2 && speakers.has(s2.name)) || colonName(t) || (isUpperLine(t) && t.length <= 45 && knownName(t.replace(/\([^)]*\)/g,'').replace(/[.:]+$/,'')))); };
+  const nameParen = t => { const m = t.match(NAMEPAREN_RE); if(!m) return null; const n = knownName(m[1]); return n ? {name:n, aside:clean(m[2]), rest:m[3]||'', kind:'paren'} : null; };
+
+  const spX = hasPos ? L.filter(l => { const s2 = matchSpeaker(l.t); return s2 && speakers.has(s2.name); }).map(l => l.x0) : [];
+  const speakerX = spX.length >= 10 && spX.filter(x => Math.abs(x - median(spX)) < 4).length >= spX.length*0.85 ? median(spX) : null;
+  const offCol = l => speakerX != null && Math.abs(l.x0 - speakerX) > 8;
+  const DASH_RE = /^([^()]{1,32}?)\.?\s*[–—]{2,}\s*(.*)$/;
+  const dashDoc = L.filter(l => DASH_RE.test(l.t)).length >= 10;
+  const dashName = (l) => { if(!dashDoc || offCol(l) || speakerX == null) return null; const m = l.t.match(DASH_RE); if(!m || !/[A-ZÁÉÍÓÚÑ]{2}/.test(m[1])) return null;
+    const raw = clean(m[1]).replace(/\.+$/,''); const name = knownName(raw) || raw.toUpperCase(); return {name, aside:'', rest: m[2]||'', kind:'dash'}; };
+  const markedDirs = L.filter(l => /^\(/.test(l.t) || l.it > 0.6).length >= 5;
+  const hanging = (() => {
+    if(!hasPos) return false;
+    const xs=[]; L.forEach((l,i)=>{ if(i && wrapped(L[i-1]) && !matchSpeaker(l.t)) xs.push(l.x0); });
+    return (xs.length > 5 && median(xs) > base + 6) || blockStyle;
+  })();
+
+  // portada y lista de personajes: todo lo anterior al comienzo real de la obra
+  const frontEnd = (() => {
+    const isStart = j => isHead(L[j]) || ROMAN_SCENE.test(L[j].t);
+    const limit = Math.max(40, Math.floor(L.length*0.25));
+    const kw = L.findIndex((l, j) => j < limit && /\b(PERSONAJES|Personajes|PERSONAJE|Personaje|REPARTO|Reparto|DRAMATIS PERSONAE)\b/.test(l.t));
+    if(kw >= 0){
+      for(let j = kw+1; j < L.length; j++){
+        if(isStart(j)) return j;
+        const s2 = matchSpeaker(L[j].t);
+        if(s2 && speakers.has(s2.name) && /[a-záéíóúñ]/.test(s2.rest) && s2.rest.length > 25 && !isUpperLine(s2.rest)) return j;
+        const nx = L[j+1];
+        const alone = (s2 && speakers.has(s2.name) && !s2.rest) || (isUpperLine(L[j].t) && knownName(L[j].t.replace(/\([^)]*\)/g,'').replace(/[.:]+$/,'')));
+        if(alone && nx && /[a-záéíóúñ]/.test(nx.t) && nx.t.length > 15 && !isUpperLine(nx.t)) return j;
+      }
+      return 0;
+    }
+    const fh = L.findIndex((l, j) => isStart(j));
+    return fh > 0 && fh < 40 ? fh : 0;
+  })();
+
+  // glosario, notas o actividades al final
+  const backStart = (() => {
+    for(let j = Math.max(frontEnd, Math.floor(L.length*0.5)); j < L.length; j++){
+      const t = L[j].t;
+      if(t.length < 60 && (isUpperLine(t) || L[j].b > 0.6) && /^\[?(GLOSARIO|VOCABULARIO|NOTAS?\b|BIBLIOGRAF[IÍ]A|ACTIVIDADES|ANEXOS?\b|AP[EÉ]NDICE|SOBRE EL AUTOR|ACERCA DEL AUTOR|[IÍ]NDICE\b|CRONOLOG[IÍ]A|GU[IÍ]A DE LECTURA)/i.test(t)) return j;
+    }
+    return L.length;
+  })();
+
+  // 2ª pasada: armar el texto
+  const out = [];
+  let cur = null, dir = null, afterHeader = false, seen = false;
+  const paren = t => { t = clean(t).replace(/\)\s*[.,;]$/, ')'); return /^\(.*\)$/.test(t) && balanced(t.slice(1,-1)) ? t : `(${t})`; };
+  const balanced = t => { let d=0; for(const ch of t){ if(ch==='(') d++; else if(ch===')'){ d--; if(d<0) return false; } } return d===0; };
+  const emitDir = t => { if(/[A-Za-zÁÉÍÓÚáéíóúÑñ]/.test(t)) out.push(paren(t)); };
+  const flush = () => {
+    if(cur){
+      const txt = clean(cur.text);
+      if(!/[\p{L}\p{N}]/u.test(txt.replace(/\([^)]*\)/g,''))) emitDir(`${titleName(cur.name)}${cur.aside?' '+cur.aside:''}${txt?' '+txt.replace(/^\(|\)$/g,''):''}`);
+      else out.push(`${cur.name}${cur.aside?` (${cur.aside})`:''}: ${txt}`);
+      cur = null;
+    }
+    if(dir){ emitDir(dir.text); dir = null; }
+  };
+  const titleName = n => n.charAt(0) + n.slice(1).toLowerCase();
+  const append = (o, t) => { t = t.trim(); if(!t) return; o.text = /[^\s-]-$/.test(o.text) && /^[a-záéíóúñ]/.test(t) ? o.text.slice(0,-1) + t : (o.text ? o.text + ' ' : '') + t; };
+  const restOf = (l, rest) => { const off = l.t.length - rest.length; return italToDirs(rest, l.im ? l.im.slice(off) : '', 0); };
+  const startSpeech = (l, sp) => {
+    flush(); afterHeader = false; seen = true;
+    cur = {name: sp.name, aside: sp.aside, text: ''};
+    if(sp.rest) append(cur, restOf(l, sp.rest));
+  };
+
+  for(let i=0;i<L.length;i++){
+    const l = L[i], prev = L[i-1], t = l.t;
+    if(i >= backStart){ if(i === backStart) flush(); if(!l.blank) out.push('[' + t.replace(/[\[\]]/g, m => m==='[' ? '(' : ')') + ']'); continue; }
+    if(i < frontEnd){ if(!l.blank) out.push('[' + t.replace(/[\[\]]/g, m => m==='[' ? '(' : ')') + ']'); continue; }
+    if(l.blank){ if(dir) flush(); continue; }
+    if(/^[\[(]\s*(…|\.\.\.)\s*[\])]$/.test(t)){ flush(); out.push('[…]'); continue; }
+    if(isCast(t)){ flush(); out.push(`[${t}]`); continue; }
+    // continuación obligada: paréntesis abierto o renglón cortado al margen
+    const startsName = (() => { const s2 = matchSpeaker(t); if(s2 && speakers.has(s2.name) && !wrapped(prev)) return true; if(!offCol(l) && (nameParen(t) || colonName(t))) return true; return isUpperLine(t) && t.length <= 45 && !!knownName(t.replace(/\([^)]*\)/g,'').replace(/[.:]+$/,'')); })();
+    if(cur && !startsName && ((depthOf(cur.text) > 0 && (cur.n = (cur.n||0) + 1) <= 12) || wrapped(prev))){ append(cur, italToDirs(t, l.im, depthOf(cur.text))); continue; }
+    if(dir && !startsName && ((depthOf(dir.text) > 0 && (dir.n = (dir.n||0) + 1) <= 12) || wrapped(prev))){ append(dir, t); if(/^\(/.test(dir.text) && depthOf(dir.text)===0) flush(); continue; }
+    const rs = t.match(ROMAN_SCENE);
+    if(rs){ flush(); out.push(''); out.push('ESCENA ' + rs[1]); afterHeader = false; seen = true; if(rs[2]) dir = {text: rs[2]}; continue; }
+    if(/^\[[^\]]*\]?$/.test(t) && seen && !/^\[\s*(…|\.\.\.)\s*\]$/.test(t)){
+      const inner = t.replace(/^\[|\]$/g,'');
+      if(cur && depthOf(cur.text)===0 && !/^(Sale|Salen|Entra|Entran|Vase|Vanse|Mutis)/i.test(inner) && false){}
+      flush(); dir = {text: inner}; if(/\]$/.test(t)) flush(); continue;
+    }
+    // títulos
+    if(isHead(l) && !(matchSpeaker(t) && speakers.has(matchSpeaker(t).name) && matchSpeaker(t).rest)){
+      flush(); out.push(''); out.push(t.toUpperCase().replace(/\s+/g,' ')); afterHeader = true; seen = true; continue;
+    }
+    // parlamento con nombre en la misma línea
+    const sp = matchSpeaker(t);
+    if(sp && speakers.has(sp.name) && !(offCol(l) && sp.kind==='title')){ startSpeech(l, sp); continue; }
+    const np = offCol(l) ? null : (nameParen(t) || colonName(t) || dashName(l));
+    if(np){ startSpeech(l, np); continue; }
+    const op = t.match(/^([^()]{1,40}?)\s*(\(.*)$/);
+    if(op && knownName(op[1]) && depthOf(op[2]) > 0){ startSpeech(l, {name: knownName(op[1]), aside:'', rest: op[2]}); continue; }
+    const soloName = isUpperLine(t) && t.length <= 45 && !!knownName(t.replace(/\([^)]*\)/g,'').replace(/[.:]+$/,''));
+    if(afterHeader && centered(l) && !soloName){ flush(); out.push(`[${t}]`); continue; }
+    // nombre solo en su renglón (formato guion)
+    if(isUpperLine(t) && t.length <= 45){
+      const asideM = t.match(/\(([^)]*)\)/);
+      const nm = knownName(t.replace(/\([^)]*\)/g,'').replace(/[.:]+$/,''));
+      if(nm){ flush(); afterHeader=false; seen=true; cur = {name:nm, aside: asideM?clean(asideM[1]):'', text:''}; continue; }
+    }
+    // información de escena (reparto, lugar) justo después de un título
+    if(afterHeader && (centered(l) || isUpperLine(t) || !hasPos)){ flush(); out.push(`[${t}]`); continue; }
+    if(cur && hanging && indented(l) && !(l.it > 0.6 && depthOf(cur.text) === 0) && !/^\[/.test(t)){
+      if(/^\(/.test(t)){
+        let d = 0, j = i, after = '';
+        for(; j < L.length && j < i + 12; j++){
+          if(j > i && looksSpeakerLine(L[j].t)){ j = j - 1; d = 0; after = ''; break; }
+          const tx = L[j].t; let k = 0;
+          for(; k < tx.length; k++){ if(tx[k]==='(') d++; else if(tx[k]===')'){ d--; if(d===0) break; } }
+          if(d===0){ after = tx.slice(k+1).trim(); break; }
+        }
+        if(d !== 0 || j >= L.length || j >= i + 12){ j = i; after = ''; }
+        if(j < i) j = i;
+        if(!/[\p{L}\p{N}¡¿]/u.test(after)){
+          if(!cur.text){ append(cur, L.slice(i, j+1).map(x=>x.t).join(' ')); i = j; continue; }   // nombre solo + (acotación): sigue siendo su parlamento
+          flush(); dir = {text: L.slice(i, j+1).map(x=>x.t).join(' ')}; flush(); i = j; continue;
+        }
+      }
+      append(cur, italToDirs(t, l.im, depthOf(cur.text))); continue;
+    }
+    // acotación entre paréntesis en su propio renglón
+    if(/^\(/.test(t)){
+      let d = 0, j = i, after = '';
+      for(; j < L.length && j < i+12; j++){
+        if(j > i && looksSpeakerLine(L[j].t)) break;
+        const tx = L[j].t; let k = 0;
+        for(; k < tx.length; k++){ if(tx[k]==='(') d++; else if(tx[k]===')'){ d--; if(d===0) break; } }
+        if(d===0){ after = tx.slice(k+1).trim(); break; }
+      }
+      if(cur && !cur.text && d === 0 && !/[\p{L}\p{N}¡¿]/u.test(after)){ append(cur, L.slice(i, j+1).map(x=>x.t).join(' ')); i = j; continue; }   // nombre solo + (acotación) + texto
+      const last = [...out].reverse().find(x => /^[^\[(].*?: /.test(x));
+      const itAfter = (() => { const Lj = L[j]; if(!Lj || !Lj.im || !after) return Lj ? Lj.it : 1; const m = Lj.im.slice(Lj.t.length - after.length); return m.length ? (m.split('1').length-1)/m.length : 0; })();
+      if(/^[.,;:]?\s*[\p{L}\p{N}¡¿"«“]/u.test(after) && (cur || last) && L[j] && itAfter < 0.6){
+        if(!cur){ flush(); cur = {name: last.split(/ \(|:/)[0], aside:'', text:''}; }
+        append(cur, italToDirs(t, l.im, depthOf(cur.text))); continue;
+      }
+      flush(); dir = {text: t}; if(depthOf(t) === 0) flush(); continue;
+    }
+    // continuación con sangría francesa
+    if(cur && hanging && indented(l)){ append(cur, italToDirs(t, l.im, depthOf(cur.text))); continue; }
+    if(cur && markedDirs && indented(l) && l.it < 0.3 && !hanging && (speakerX == null || offCol(l))){ append(cur, t); continue; }
+    // acotación en cursiva o con sangría
+    const looksDir = (l.it > 0.6) || (indented(l) && !hanging);
+    if(looksDir){
+      if(!seen && !cur){ flush(); out.push(`[${t}]`); continue; }
+      if(dir && (Math.abs(l.x0 - prev.x0) < 3 && l.it > 0.6 === prev.it > 0.6) && !/[.)]$/.test(dir.text)){ append(dir, t); continue; }
+      flush(); dir = {text:t}; continue;
+    }
+    if(cur){ append(cur, italToDirs(t, l.im, depthOf(cur.text))); continue; }
+    if(dir) flush();
+    if(!seen || afterHeader || centered(l)){ out.push(`[${t}]`); continue; }
+    // texto suelto sin nombre después de una acotación: sigue hablando el último personaje
+    const last = [...out].reverse().find(x => /^[^\[(].*?: /.test(x));
+    if(last && l.it < 0.3){ const nm = last.split(/ \(|:/)[0]; cur = {name:nm, aside:'', text:''}; append(cur, italToDirs(t, l.im, 0)); continue; }
+    emitDir(t);
+  }
+  flush();
+
+  // resaltado por personaje
+  const hlBy = {};
+  if(hasPos){
+    let who=null;
+    L.forEach((l) => {
+      const sp = matchSpeaker(l.t), np = nameParen(l.t);
+      if(sp && speakers.has(sp.name)) who = sp.name;
+      else if(np) who = np.name;
+      else if(isUpperLine(l.t) && knownName(l.t.replace(/[.:]+$/,''))) who = knownName(l.t.replace(/[.:]+$/,''));
+      else if(HEAD_RE.test(l.t)) who = null;
+      if(who){ const h = hlBy[who] || (hlBy[who] = {hl:0, all:0}); const n=l.t.length; h.all+=n; h.hl+=l.hl*n; }
+    });
+  }
+  const marked = Object.entries(hlBy).filter(([,h]) => h.hl > 40 && h.hl/h.all > 0.35).map(([n])=>n);
+  return {text: out.join('\n').replace(/\n{3,}/g,'\n\n').trim() + '\n', marked};
+}
+
+/* ---------- 3. texto normalizado → guion ---------- */
+const CANON_RE = new RegExp(`^([${UP}${LOW}0-9 '’\\-]{1,45}?)\\s*(?:\\(([^)]*)\\))?\\s*:\\s*(.*)$`);
+function isName(n){
+  n = n.trim(); if(!n || n.length > 45) return false;
+  if(!new RegExp(`^[${UP}]`).test(n)) return false;
+  if(isUpperLine(n)) return true;
+  if(/[.,;!?¿¡"«»]/.test(n)) return false;
+  const ws = n.split(/\s+/);
+  return ws.length <= 4 && (ws.every(w => new RegExp(`^[${UP}]`).test(w) || /^(de|del|la|el|y|los|las)$/.test(w)) || new RegExp(`^[${UP}][${LOW}]+(\\s+[${LOW}]+){1,3}$`).test(n));
+}
+function parseCanonical(text, aliases){
+  aliases = aliases || {};
+  const items = [];
+  let cur = null;
+  const variants = {};
+  text.replace(/\r/g,'').split('\n').forEach(raw => { const m = raw.trim().match(CANON_RE); if(m && isName(m[1])){ const n = clean(m[1]).toUpperCase(); const f = fold(n); (variants[f] = variants[f] || {})[n] = ((variants[f]||{})[n]||0) + 1; } });
+  const best = {}; Object.entries(variants).forEach(([f, v]) => { best[f] = Object.entries(v).sort((a,b)=>b[1]-a[1] || b[0].length-a[0].length)[0][0]; });
+  const canon = n => { n = clean(n).toUpperCase(); n = best[fold(n)] || n; return aliases[n] || n; };
+  text.replace(/\r/g,'').split('\n').forEach(raw => {
+    const t = raw.trim();
+    if(!t){ cur = null; return; }
+    if(t === '[…]' || t === '[...]'){ cur=null; items.push({k:'gap'}); return; }
+    if(/^\[.*\]$/.test(t)){ cur=null; const last=items[items.length-1];
+      if(last && last.k==='scene'){ last.info = (last.info ? last.info + (/[.!?:]$/.test(last.info) ? ' · ' : ' ') : '') + t.slice(1,-1); }
+      else items.push({k:'note', t:t.slice(1,-1)}); return; }
+    if(HEAD_RE.test(t) && t.length < 70 && !CANON_RE.test(t)){ cur=null; items.push({k: ACT_LEVEL.test(t) ? 'act' : 'scene', t: t.toUpperCase()}); return; }
+    if(/^\(.*\)$/.test(t)){ cur=null; items.push({k:'dir', t:t.slice(1,-1).trim()}); return; }
+    const m = t.match(CANON_RE);
+    if(m && isName(m[1])){
+      cur = {k:'line', who: clean(m[1]).toUpperCase(), aside: clean(m[2]||''), raw: m[3]};
+      items.push(cur); return;
+    }
+    if(cur){ cur.raw += ' ' + t; return; }
+    items.push({k:'dir', t});
+  });
+  // personajes
+  const counts = {};
+  const lines = items.filter(i => i.k==='line');
+  lines.forEach(l => { const c = canon(l.who); counts[c] = (counts[c]||0) + 1; });
+  lines.forEach(l => {
+    const c = canon(l.who);
+    const parts = c.split(/\s+Y\s+|\s*,\s*/).map(canon);
+    l.c = (parts.length > 1 && parts.every(p => counts[p] && p !== c)) ? parts : [c];
+    l.p = splitParts(l.raw); delete l.raw;
+  });
+  const chars = Object.entries(counts).filter(([n]) => !(n.split(/\s+Y\s+|\s*,\s*/).length>1 && lines.every(l => !(l.c.length===1 && l.c[0]===n)))).map(([n,c]) => ({n, c}));
+  // contar los compuestos en cada parte
+  const tally = {}; lines.forEach(l => l.c.forEach(c => tally[c]=(tally[c]||0)+1));
+  return {items, chars: Object.keys(tally).map(n => ({n, c:tally[n]})).sort((a,b)=>b.c-a.c)};
+}
+function splitParts(raw){
+  const parts = [];
+  clean(raw).split(/(\([^)]*\))/).forEach(ch => {
+    ch = ch.trim(); if(!ch) return;
+    if(ch.startsWith('(')){ const d=ch.slice(1,-1).trim(); parts.push(new RegExp(`^[${LOW}]`).test(d) ? {d, g:1} : {d}); }
+    else { ch = ch.replace(/^[:.,;]\s*/, ''); if(ch) parts.push({s: ch}); }
+  });
+  return parts.length ? parts : [{s:''}];
+}
+
+return {extractPDF, linesToCanonical, textLines, classify, parseCanonical, isUpperLine, numEs};
+})();
+if(typeof module !== 'undefined') module.exports = Core;
+
+</script>
+<script>
+const PDFJS_V = '3.11.174';
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const HAS_TTS = 'speechSynthesis' in window;
+const $ = s => document.querySelector(s);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const niceTitle = s => s.toLowerCase().replace(/(^|[\s(-])([a-záéíóúñü][\wáéíóúñü]*)/g, (m,a,w,i,str) => a + (i>0 && !/-\s*$/.test(str.slice(0,i+1).replace(/\s+$/,'')) && /^(y|e|o|u|de|del|la|el|los|las|en|a|al|por|con)$/.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)));
+const titleCase = s => s.toLowerCase().replace(/(^|[\s(-])([a-záéíóúñü])/g, (m,a,b) => a + b.toUpperCase());
+
+const EXAMPLE = {id:'ejemplo', example:true, title:'Ejemplo: el camarín', lang:'es-AR', aliases:{}, mine:['ACTRIZ'], pos:0, text:
+`ESCENA 1
+[Un camarín, minutos antes de la función.]
+ACTRIZ: ¿Viste mi sombrero? Lo dejé acá, al lado del espejo.
+DIRECTOR: Tu sombrero está en la cabeza del utilero.
+ACTRIZ: ¿Otra vez? Ese hombre colecciona sombreros ajenos.
+DIRECTOR: Dice que le dan suerte. Faltan cinco minutos.
+ACTRIZ (mirándose al espejo): Cinco minutos alcanzan para olvidarme todo.
+DIRECTOR: Nadie se olvida todo. Como mucho, la mitad.
+ACTRIZ: Qué consuelo.
+(Suena el primer timbre.)
+DIRECTOR: Primer timbre. Respirá hondo y decime tu primera línea.
+ACTRIZ: Buenas noches, señores. Esta casa no es lo que parece.
+DIRECTOR: Perfecto. Ahora andá a buscar ese sombrero.
+`};
+
+/* ---------- almacenamiento ---------- */
+const DEF = {hide:'hidden', adv: SR ? 'mic' : 'tap', strict:0.7, rate:1, voiceURI:'', readDirs:false, onlyMine:true};
+let DB = {obras:[], settings:Object.assign({}, DEF)};
+try { const d = JSON.parse(localStorage.getItem('ensayador-v1') || 'null'); if(d){ DB.obras = d.obras || []; Object.assign(DB.settings, d.settings || {}); } } catch(e) {}
+const S = DB.settings;
+let storeOk = true;
+function save(){
+  try { localStorage.setItem('ensayador-v1', JSON.stringify({obras: DB.obras.filter(o=>!o.example), settings: S})); storeOk = true; }
+  catch(e){ storeOk = false; }
+}
+
+/* ---------- pantallas ---------- */
+const SCREENS = ['lib','paste','review','edit','play'];
+function show(id){
+  SCREENS.forEach(s => $('#'+s).hidden = s!==id);
+  $('#dock').hidden = id!=='play';
+  $('#homeBtn').hidden = id==='lib';
+  $('#openSet').hidden = id!=='play';
+  $('#where').hidden = id!=='play';
+  $('#brandSub').textContent = id==='play' && OBRA ? OBRA.title : 'Aprendé tu letra';
+  if(id!=='play'){ stopAll(); run.on=false; letSleep(); document.body.classList.remove('running'); }
+  $('#'+id).scrollTop = 0;
+}
+$('#homeBtn').onclick = () => { renderLib(); show('lib'); };
+
+/* ---------- biblioteca ---------- */
+function allObras(){ return [...DB.obras, EXAMPLE]; }
+function renderLib(){
+  $('#obras').innerHTML = allObras().map(o => {
+    const p = Core.parseCanonical(o.text, o.aliases);
+    const nl = p.items.filter(i=>i.k==='line').length;
+    const mine = (o.mine||[]).map(titleCase).join(' + ');
+    return `<div class="obra"><button class="o-main" data-open="${esc(o.id)}"><span class="o-t">${esc(o.title)}${o.example?'<span class="tag">Ejemplo</span>':''}</span><span class="o-s">${mine?`<b>${esc(mine)}</b> · `:''}${p.chars.length} personajes · ${nl} parlamentos</span></button>${o.example?'':`<button class="del" data-del="${esc(o.id)}" aria-label="Borrar ${esc(o.title)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>`}</div>`;
+  }).join('');
+}
+$('#obras').onclick = e => {
+  const o = e.target.closest('[data-open]'); const d = e.target.closest('[data-del]');
+  if(o){ openObra(allObras().find(x => x.id===o.dataset.open)); }
+  if(d){
+    const ob = DB.obras.find(x => x.id===d.dataset.del); if(!ob) return;
+    if(d.dataset.sure){ DB.obras = DB.obras.filter(x => x!==ob); save(); renderLib(); }
+    else { d.dataset.sure='1'; d.innerHTML='<b style="color:var(--red);font-size:13px">¿Borrar?</b>'; setTimeout(()=>{ if(d.isConnected){ delete d.dataset.sure; renderLib(); } }, 3000); }
+  }
+};
+
+function loadScript(src){ return new Promise((res, rej) => { const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=()=>rej(new Error('No pude cargar '+src)); document.head.appendChild(s); }); }
+async function ensurePdfJs(){
+  if(window.pdfjsLib) return window.pdfjsLib;
+  const base = 'vendor/';
+  await loadScript(base + 'pdf.min.js');
+  await loadScript(base + 'pdf.worker.min.js');   // corre en la misma página: el visor no deja abrir workers de otro sitio
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = base + 'pdf.worker.min.js';
+  return window.pdfjsLib;
+}
+function libError(t){ $('#libErr').textContent = t; $('#libErr').hidden = !t; }
+function progress(t, f){ $('#prog').hidden = t==null; if(t!=null){ $('#progTxt').textContent = t; $('#progBar').style.width = (clamp(f||0,0,1)*100)+'%'; } }
+
+$('#pdfIn').onchange = async e => {
+  const file = e.target.files[0]; e.target.value = '';
+  if(!file) return;
+  libError('');
+  const fname = file.name.replace(/\s*\((versi[oó]n|copia|copy)[^)]*\)/gi,'').replace(/(\.(pdf|txt|docx?|odt|rtf))+/gi,'').trim().replace(/^[0-9a-f]{6,}-|^\d{5,}-/i,'');
+  const baseTitle = niceTitle((/[\s_]/.test(fname) ? fname : fname.replace(/-/g,' ')).replace(/_+/g,' ').replace(/\s+-\s+|\s+/g, m => m.includes('-') ? ' - ' : ' ').trim());
+  try {
+    if(/\.txt$/i.test(file.name) || file.type==='text/plain'){
+      const txt = await file.text();
+      return analyze(Core.classify(Core.textLines(txt), 12), baseTitle);
+    }
+    progress('Preparando el lector de PDF…', 0.05);
+    const lib = await ensurePdfJs();
+    const buf = new Uint8Array(await file.arrayBuffer());
+    const r = await Core.extractPDF(lib, buf, (n, tot) => progress(`Leyendo página ${n} de ${tot}…`, n/tot));
+    const letters = r.pages.reduce((s,p) => s + p.lines.reduce((a,l)=>a+(l.t.match(/[A-Za-zÁÉÍÓÚÑáéíóúñü]{2,}/g)||[]).join('').length,0), 0);
+    progress(null);
+    if(letters < 120 * Math.max(1, r.numPages/2)){
+      libError('No puedo leer el texto de este PDF. Puede ser un escaneo (fotos de las páginas) o un PDF que guarda las letras sin el texto. Probá abrirlo y copiar un párrafo: si al pegarlo salen símbolos raros o nada, el PDF no tiene texto. Si tenés el original en Word o Google Docs, exportalo de nuevo a PDF, o usá "Pegar texto".');
+      return;
+    }
+    let title = (r.title || '').replace(/^Microsoft Word\s*-\s*/i,'').replace(/\s*[—–-]\s*transcripci[oó]n$/i,'').replace(/(\.(docx?|odt|rtf|pdf|txt))+$/i,'').trim();
+    const parts = title.split(/\s+-\s+/).filter(x => !/_/.test(x));
+    title = (parts.length > 1 ? parts.filter(x => !/^[^,\s]+(\s[^,\s]+)?,\s*[^,]+$/.test(x)) : parts).join(' - ');
+    if(!title || /pdf\.?js|viewer|^document|^documento|^sin t[ií]tulo|^untitled|microsoft|\.-|^[^,]+,[^,]+$/i.test(title) || title.length > 80) title = baseTitle;
+    else if(title === title.toUpperCase() || title === title.toLowerCase()) title = niceTitle(title);
+    const res = Core.linesToCanonical(r.pages);
+    if(Core.parseCanonical(res.text, {}).items.filter(i => i.k==='line').length < 3){
+      libError('Leí el texto del PDF pero no encontré parlamentos con nombre de personaje. Si el formato es poco común, copiá el texto y usá "Pegar texto": ahí podés corregirlo a mano con el formato NOMBRE: texto.');
+      return;
+    }
+    analyze(res, title);
+  } catch(err){
+    progress(null);
+    libError('No pude leer ese archivo. ' + (err && err.message ? err.message : '') + ' Si sigue fallando, copiá el texto del PDF y usá "Pegar texto".');
+  }
+};
+$('#pasteBtn').onclick = () => { $('#pasteTxt').value=''; $('#pasteTitle').value=''; show('paste'); $('#pasteTxt').focus(); };
+$('#pasteCancel').onclick = () => show('lib');
+$('#pasteGo').onclick = () => {
+  const t = $('#pasteTxt').value; if(!t.trim()) { $('#pasteTxt').focus(); return; }
+  analyze(Core.classify(Core.textLines(t), 12), $('#pasteTitle').value.trim() || 'Obra sin nombre');
+};
+
+/* ---------- revisión ---------- */
+let DRAFT = null;   // obra en revisión
+function analyze(res, title){
+  DRAFT = {id: 'o' + Date.now().toString(36), title, text: res.text, aliases:{}, mine: [], lang:'es-AR', pos:0, marked: res.marked || []};
+  const p = Core.parseCanonical(DRAFT.text, {});
+  DRAFT.mine = DRAFT.marked.filter(n => p.chars.some(c => c.n===n));
+  renderReview(); show('review');
+}
+function openReview(obra){ DRAFT = JSON.parse(JSON.stringify(obra)); DRAFT.marked = DRAFT.marked || []; renderReview(); show('review'); }
+function renderReview(){
+  const d = DRAFT;
+  $('#rTitle').value = d.title;
+  const raw = Core.parseCanonical(d.text, {});
+  const p = Core.parseCanonical(d.text, d.aliases);
+  const nLines = p.items.filter(i=>i.k==='line').length;
+  const nScenes = p.items.filter(i=>i.k==='scene').length;
+  const nDirs = p.items.filter(i=>i.k==='dir').length + p.items.filter(i=>i.k==='line').reduce((s,l)=>s+l.p.filter(x=>x.d!=null&&!x.g).length,0);
+  $('#rStats').innerHTML = `<span class="stat"><b>${p.chars.length}</b>personajes</span><span class="stat"><b>${nLines}</b>parlamentos</span>${(() => { const nA = p.items.filter(i=>i.k==='act' && !/^(FIN|TEL)/.test(i.t)).length; return nScenes ? `<span class="stat"><b>${nScenes}</b>escenas</span>` : nA ? `<span class="stat"><b>${nA}</b>${nA===1?'acto':'actos'}</span>` : ''; })()}<span class="stat"><b>${nDirs}</b>acotaciones</span>`;
+  const mk = d.marked.filter(n => raw.chars.some(c=>c.n===n));
+  $('#rMarked').hidden = !mk.length;
+  $('#rMarked').textContent = mk.length ? `Encontré texto resaltado en el PDF: parece ser la parte de ${mk.map(titleCase).join(' y ')}. Ya lo marqué como tu personaje.` : '';
+  const targets = raw.chars.map(c=>c.n);
+  $('#rChars').innerHTML = raw.chars.map(c => {
+    const to = d.aliases[c.n];
+    const merged = !!to;
+    return `<div class="crow${merged?' merged':''}">
+      <button class="me" data-me="${esc(c.n)}" aria-pressed="${d.mine.includes(c.n)}" ${merged?'disabled':''} aria-label="Soy ${esc(c.n)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></button>
+      <div class="nm">${esc(c.n)}<small>${c.c} ${c.c===1?'parlamento':'parlamentos'}${merged?` · unido a ${esc(to)}`:''}</small></div>
+      <select data-alias="${esc(c.n)}" aria-label="Unir ${esc(c.n)} con otro personaje"><option value="">${merged?'Separar':'Unir con…'}</option>${targets.filter(t=>t!==c.n && !d.aliases[t]).map(t=>`<option value="${esc(t)}" ${to===t?'selected':''}>${esc(t)}</option>`).join('')}</select>
+    </div>`;
+  }).join('');
+  renderPreview(p);
+}
+function renderPreview(p){
+  const items = p.items.slice(0, 40);
+  const mineSet = new Set(DRAFT.mine.map(n => DRAFT.aliases[n] || n));
+  $('#rPreview').innerHTML = items.map(it => itemHTML(it, it.k==='line' && it.c.some(c=>mineSet.has(c)), true)).join('') + (p.items.length > 40 ? `<div class="it gap">… y ${p.items.length-40} más</div>` : '');
+}
+$('#rTitle').oninput = e => { DRAFT.title = e.target.value; };
+$('#rChars').onclick = e => {
+  const b = e.target.closest('[data-me]'); if(!b) return;
+  const n = b.dataset.me;
+  DRAFT.mine = DRAFT.mine.includes(n) ? DRAFT.mine.filter(x=>x!==n) : [...DRAFT.mine, n];
+  b.setAttribute('aria-pressed', String(DRAFT.mine.includes(n)));
+  renderPreview(Core.parseCanonical(DRAFT.text, DRAFT.aliases));
+};
+$('#rChars').onchange = e => {
+  const s = e.target.closest('[data-alias]'); if(!s) return;
+  const from = s.dataset.alias, to = s.value;
+  if(to){ DRAFT.aliases[from] = to; Object.keys(DRAFT.aliases).forEach(k => { if(DRAFT.aliases[k]===from) DRAFT.aliases[k]=to; }); if(DRAFT.mine.includes(from)) DRAFT.mine = [...new Set(DRAFT.mine.filter(x=>x!==from).concat(to))]; }
+  else delete DRAFT.aliases[from];
+  renderReview();
+};
+$('#rEdit').onclick = () => { $('#edTxt').value = DRAFT.text; show('edit'); };
+$('#edCancel').onclick = () => show('review');
+$('#edGo').onclick = () => {
+  DRAFT.text = $('#edTxt').value.replace(/\r/g,'');
+  const p = Core.parseCanonical(DRAFT.text, {});
+  const names = new Set(p.chars.map(c=>c.n));
+  Object.keys(DRAFT.aliases).forEach(k => { if(!names.has(k) || !names.has(DRAFT.aliases[k])) delete DRAFT.aliases[k]; });
+  DRAFT.mine = DRAFT.mine.filter(n => names.has(n));
+  renderReview(); show('review');
+};
+$('#rGo').onclick = () => {
+  const d = DRAFT; d.title = d.title.trim() || 'Obra sin nombre';
+  d.mine = [...new Set(d.mine.map(n => d.aliases[n] || n))];
+  if(d.example){ Object.assign(EXAMPLE, d); }
+  else { const i = DB.obras.findIndex(o => o.id===d.id); if(i>=0) DB.obras[i] = d; else DB.obras.unshift(d); save(); }
+  openObra(d.example ? EXAMPLE : DB.obras.find(o => o.id===d.id));
+  if(!storeOk) notice('No pude guardar la obra en este navegador (falta espacio o está bloqueado). Podés ensayar igual, pero al cerrar se pierde.');
+};
+
+/* ---------- modelo de la obra en ensayo ---------- */
+let OBRA = null, ITEMS = [], LINES = [], SCENES = [], CHARS = [], VOICE = {};
+const PITCH = [0.75, 1.3, 0.95, 1.2, 0.85, 1.45, 1.05, 0.7, 1.15, 1.35, 0.9, 1.25];
+const RATE  = [0.95, 1.05, 1, 1.02, 0.94, 1.08, 1, 0.92, 1.1, 1.04, 0.97, 1.06];
+const NARR = {p:1, r:1.05};
+const esLang = () => ((OBRA && OBRA.lang) || 'es').startsWith('es');
+function norm(w){ return w.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,''); }
+
+function buildModel(){
+  const p = Core.parseCanonical(OBRA.text, OBRA.aliases);
+  ITEMS = p.items; CHARS = p.chars;
+  VOICE = {}; CHARS.forEach((c,i) => VOICE[c.n] = {p: PITCH[i % PITCH.length], r: RATE[i % RATE.length]});
+  let act = '', scene = null, nScene = 0;
+  SCENES = [];
+  ITEMS.forEach((it, i) => {
+    it.i = i;
+    if(it.k==='act'){ act = /^(ACTO|JORNADA|PARTE|PRIMER|SEGUNDO|TERCER|CUARTO|QUINTO|[UÚ]NICO)/.test(it.t) ? it.t.replace(/\s*\[.*$/,'') : ''; scene = null; }
+    if(it.k==='scene'){ scene = i; nScene++; it.label = (act ? titleCase(act) + ' · ' : '') + titleCase(it.t); SCENES.push(it); }
+    it.scn = it.k==='act' ? null : scene;
+    it.actLabel = act;
+    if(it.k==='line'){
+      it.toks = 0; it.exp = [];
+      it.html = it.p.map(pt => {
+        if(pt.d != null) return `<span class="d${pt.g?' g':''}">(${esc(pt.d)})</span>`;
+        return '<span class="s">' + pt.s.split(/\s+/).filter(Boolean).map(w => {
+          const m = w.match(/^([^\p{L}\p{N}]*)(.*?)([^\p{L}\p{N}]*)$/u);
+          const ti = it.toks++;
+          m[2].split(/[-'’]/).forEach(part => { const n = norm(part); if(!n) return; const nw = (/^\d{1,3}$/.test(n) && esLang()) ? Core.numEs(+n) : null; (nw ? nw.split(' ') : [n]).forEach(x => it.exp.push({w:x, t:ti})); });
+          return `<span class="w" data-t="${ti}">${esc(m[1])}<span class="wk"><span class="f">${esc(m[2].slice(0,1))}</span><span class="r">${esc(m[2].slice(1))}</span></span>${esc(m[3])}</span>`;
+        }).join(' ') + '</span>';
+      }).join(' ');
+    }
+  });
+  if(!SCENES.length){
+    // sin escenas: puntos de partida cada 20 parlamentos
+    let k = 0; ITEMS.forEach(it => { if(it.k==='line'){ if(k % 20 === 0) SCENES.push({i: it.i, label: `Parlamento ${k+1}`, virtual:true}); k++; } });
+  }
+  LINES = ITEMS.filter(it => it.k==='line');
+}
+const isMine = it => it.k==='line' && it.c.some(c => OBRA.mine.includes(c));
+const sceneHasMine = scn => LINES.some(l => l.scn===scn && isMine(l));
+function sceneLabelFor(i){
+  const it = ITEMS[i]; if(!it) return '';
+  if(it.scn != null) return ITEMS[it.scn].label;
+  const v = [...SCENES].reverse().find(s => s.i <= i);
+  return v ? v.label : (it.actLabel ? titleCase(it.actLabel) : 'Inicio');
+}
+
+function itemHTML(it, mine, preview){
+  const di = preview ? '' : ` data-i="${it.i}"`;
+  if(it.k==='act') return `<div class="it act"${di}>${esc(titleCase(it.t))}</div>`;
+  if(it.k==='scene') return `<div class="it scene"${di}><h3>${esc(it.t)}</h3>${it.info?`<p>${esc(it.info)}</p>`:''}</div>`;
+  if(it.k==='dir') return `<div class="it dir"${di}>${esc(it.t)}</div>`;
+  if(it.k==='note') return `<div class="it note"${di}>${esc(it.t)}</div>`;
+  if(it.k==='gap') return `<div class="it gap"${di}>[ … fragmento omitido … ]</div>`;
+  const html = it.html || it.p.map(pt => pt.d!=null ? `<span class="d${pt.g?' g':''}">(${esc(pt.d)})</span>` : `<span class="s">${esc(pt.s)}</span>`).join(' ');
+  return `<div class="it ln${mine?' mine':''}"${di}><div class="who"><span>${esc(it.who)}${it.aside?` <i>· ${esc(it.aside)}</i>`:''}</span></div><div class="tx">${html}</div></div>`;
+}
+
+function openObra(o){
+  OBRA = o; OBRA.lang = OBRA.lang || 'es-AR';
+  buildModel();
+  run.idx = clamp(OBRA.pos || 0, 0, Math.max(0, ITEMS.length-1)); run.finished = false; run.on = false;
+  show('play');
+  render();
+  setCur(run.idx, false);
+  requestAnimationFrame(() => ITEMS[run.idx] && scrollToEl(ITEMS[run.idx].el));
+  status('', 'Listo para ensayar', OBRA.mine.length ? 'Tocá una línea para empezar desde ahí' : 'Elegí tu personaje en Ajustes');
+  heardShow(''); bar(0); controls(); loadVoices();
+  if(!OBRA.mine.length) openSheet();
+}
+
+/* ---------- render del guion ---------- */
+const scriptEl = $('#script');
+function render(){
+  scriptEl.innerHTML = ITEMS.map(it => itemHTML(it, isMine(it), false)).join('');
+  ITEMS.forEach(it => it.el = scriptEl.querySelector(`[data-i="${it.i}"]`));
+  updateCount();
+}
+function tokEls(it){ return it.el.querySelectorAll('.w'); }
+function maskLine(it){
+  const cls = S.hide==='hidden' ? 'hid' : S.hide==='initials' ? 'ini' : '';
+  tokEls(it).forEach(e => { e.classList.remove('hid','ini','got'); if(cls) e.classList.add(cls); });
+}
+function revealTok(it, t, heard){ const e = it.el.querySelector(`.w[data-t="${t}"]`); if(e){ e.classList.remove('hid','ini'); if(heard) e.classList.add('got'); } }
+function revealAll(it){ tokEls(it).forEach(e => e.classList.remove('hid','ini')); }
+function setBadge(it, kind){
+  const who = it.el.querySelector('.who'); let b = who.querySelector('.badge');
+  if(!b){ b = document.createElement('span'); who.appendChild(b); }
+  b.className = 'badge ' + (kind==='ok' ? 'ok' : 'help'); b.textContent = kind==='ok' ? 'Bien' : 'Con ayuda';
+}
+function clearBadges(){ scriptEl.querySelectorAll('.badge').forEach(b => b.remove()); }
+function prepareMasks(from){ LINES.forEach(l => { if(!isMine(l)) return; if(l.i >= from) maskLine(l); else revealAll(l); }); }
+function updateCount(){
+  if(!OBRA) return;
+  const mine = LINES.filter(isMine).length;
+  const names = OBRA.mine.map(titleCase).join(' + ') || 'Sin personaje';
+  $('#count').textContent = run.on ? `${names} · ${stats.done}/${stats.total}` : `${names} · ${mine} líneas`;
+}
+let curEl = null;
+function setCur(i, scroll=true){
+  if(curEl) curEl.classList.remove('cur','start');
+  const it = ITEMS[i]; if(!it || !it.el) return;
+  curEl = it.el; curEl.classList.add(run.on ? 'cur' : 'start');
+  $('#whereB').textContent = sceneLabelFor(i);
+  if(scroll) scrollToEl(curEl);
+}
+function scrollToEl(el){
+  if(!el) return;
+  const main = $('#play'); const r = el.getBoundingClientRect(), mr = main.getBoundingClientRect();
+  main.scrollTo({top: main.scrollTop + r.top - mr.top - main.clientHeight*0.28, behavior: reduceMotion ? 'auto' : 'smooth'});
+}
+
+/* ---------- consola ---------- */
+function status(dot, txt, sub){ $('#dot').className = 'dot ' + (dot||''); $('#stxt').innerHTML = esc(txt) + (sub ? `<small>${esc(sub)}</small>` : ''); }
+function heardShow(t){ $('#heard').textContent = t ? '“' + t.trim() + '”' : ''; }
+function bar(f){ $('#bar').style.width = (clamp(f,0,1)*100).toFixed(1) + '%'; }
+function notice(t){ $('#noticeTxt').textContent = t; $('#notice').hidden = !t; }
+$('#noticeX').onclick = () => notice('');
+function controls(){
+  const m = $('#mainBtn'); m.classList.remove('turn');
+  const inTurn = turn && !turn.done;
+  if(!run.on) m.textContent = run.finished ? 'De nuevo' : 'Empezar';
+  else if(run.paused) m.textContent = 'Seguir';
+  else if(inTurn){ m.textContent = 'Ya lo dije'; m.classList.add('turn'); }
+  else if(turn && turn.done) m.textContent = 'Seguir';
+  else m.textContent = 'Pausar';
+  $('#hint').disabled = !inTurn; $('#peek').disabled = !inTurn;
+  $('#pause').hidden = !(run.on && !run.paused && turn);
+  document.body.classList.toggle('running', run.on);
+}
+
+/* ---------- voz sintética ---------- */
+let voices = [];
+function rankVoice(v){
+  const L = v.lang.replace('_','-'), want = (OBRA && OBRA.lang) || 'es-AR';
+  let r = L === want ? 0 : L.slice(0,2) === want.slice(0,2) ? 2 : 6;
+  if(want.startsWith('es') && ['es-US','es-419','es-MX'].includes(L)) r = Math.min(r, 1);
+  if(/google|natural|premium|enhanced|neural/i.test(v.name)) r -= 0.5;
+  return r;
+}
+function loadVoices(){
+  if(!HAS_TTS) return;
+  const want = ((OBRA && OBRA.lang) || 'es-AR').slice(0,2);
+  voices = speechSynthesis.getVoices().filter(v => v.lang.toLowerCase().startsWith(want)).sort((a,b) => rankVoice(a) - rankVoice(b));
+  const sel = $('#voiceSel');
+  sel.innerHTML = voices.length ? voices.map(v => `<option value="${esc(v.voiceURI)}">${esc(v.name)} (${esc(v.lang)})</option>`).join('') : '<option value="">Voz del sistema</option>';
+  if(S.voiceURI && voices.some(v => v.voiceURI===S.voiceURI)) sel.value = S.voiceURI;
+}
+if(HAS_TTS){ loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+function baseVoice(){ return voices.find(v => v.voiceURI===S.voiceURI) || voices[0] || null; }
+function chunks(t){ return (t.match(/[^.!?…]+[.!?…]*["»”]?/g) || [t]).map(s => s.trim()).filter(Boolean); }
+function ttsText(s){ return s.replace(/['’`]/g,'').replace(/-/g,' ').replace(/[A-ZÁÉÍÓÚÑ]{3,}/g, w => w.toLowerCase()).replace(/\.\.\.+/g,'…'); }
+function sayOne(text, cfg){
+  return new Promise(res => {
+    if(!HAS_TTS){ setTimeout(res, 600 + text.length*65/S.rate); return; }
+    const u = new SpeechSynthesisUtterance(text);
+    const v = baseVoice(); if(v){ u.voice = v; u.lang = v.lang; } else u.lang = (OBRA && OBRA.lang) || 'es-AR';
+    u.rate = clamp(S.rate*(cfg.r||1), .5, 2); u.pitch = clamp(cfg.p||1, 0, 2);
+    let done = false; const fin = () => { if(done) return; done = true; clearTimeout(to); res(); };
+    const to = setTimeout(fin, 3000 + text.length*130/S.rate);
+    u.onend = fin; u.onerror = fin;
+    speechSynthesis.speak(u);
+  });
+}
+async function say(text, cfg, tok){ for(const c of chunks(ttsText(text))){ if(tok !== run.token) return; await sayOne(c, cfg); } }
+function hush(){ if(HAS_TTS) speechSynthesis.cancel(); }
+
+/* ---------- motor del ensayo ---------- */
+const run = {on:false, paused:false, idx:0, token:0, finished:false};
+const stats = {done:0, clean:0, total:0};
+let turn = null, micBlocked = false, micBlockedReal = false, micNetFail = false, wakeLock = null, startOfRun = 0;
+async function keepAwake(){ try { wakeLock = await navigator.wakeLock?.request('screen'); } catch(e) {} }
+function letSleep(){ try { wakeLock?.release(); } catch(e) {} wakeLock = null; }
+let posTimer = 0;
+function savePos(){ if(!OBRA) return; OBRA.pos = run.idx; if(OBRA.example) return; clearTimeout(posTimer); posTimer = setTimeout(() => { posTimer = 0; save(); }, 800); }
+addEventListener('pagehide', () => { if(posTimer){ clearTimeout(posTimer); posTimer = 0; save(); } });
+
+function stopAll(){ run.token++; hush(); if(turn){ stopRec(turn); stopTimer(); turn = null; } }
+function start(){
+  stopAll();
+  if(HAS_TTS){ try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch(e) {} }
+  if(run.finished){ run.idx = startOfRun || 0; run.finished = false; }
+  startOfRun = run.idx;
+  clearBadges(); prepareMasks(run.idx);
+  stats.done = 0; stats.clean = 0;
+  stats.total = LINES.filter(l => isMine(l) && l.i >= run.idx).length;
+  run.on = true; run.paused = false; notice('');
+  keepAwake(); updateCount();
+  loop(run.token);
+}
+function pause(){
+  if(!run.on) return;
+  stopAll(); run.paused = true; letSleep();
+  status('', 'En pausa', 'Tocá Seguir para retomar desde esta línea'); heardShow(''); bar(0); controls();
+}
+function resume(){ run.paused = false; keepAwake(); stopAll(); loop(run.token); }
+function jumpTo(i){
+  stopAll(); run.idx = i; savePos(); run.finished = false;
+  if(run.on){ prepareMasks(i); run.paused = false; keepAwake(); loop(run.token); }
+  else { setCur(i); const it = ITEMS[i]; status('', 'Empieza desde acá', it.k==='line' ? titleCase(it.who) + (isMine(it) ? ' (vos)' : '') : sceneLabelFor(i)); controls(); }
+}
+function finish(){
+  run.on = false; run.finished = true; letSleep(); hush();
+  if(OBRA){ OBRA.pos = 0; if(!OBRA.example) save(); }
+  status('', 'Terminaste', stats.total ? `${stats.clean} de ${stats.total} líneas sin ayuda` : 'Fin de la obra');
+  heardShow(''); bar(stats.total ? stats.clean/stats.total : 1);
+  if(curEl) curEl.classList.remove('cur');
+  controls(); updateCount();
+}
+async function loop(tok){
+  controls();
+  while(tok === run.token && run.on && !run.paused){
+    if(run.idx >= ITEMS.length){ finish(); return; }
+    const it = ITEMS[run.idx];
+    if(S.onlyMine && OBRA.mine.length && it.scn != null && !sceneHasMine(it.scn)){ run.idx++; continue; }
+    setCur(run.idx); savePos();
+    await play(it, tok);
+    if(tok !== run.token) return;
+    run.idx++;
+  }
+}
+async function play(it, tok){
+  heardShow(''); bar(0);
+  if(it.k==='act' || it.k==='gap'){ status('', it.k==='gap' ? 'Fragmento omitido' : titleCase(it.t)); controls(); await sleep(500); return; }
+  if(it.k==='scene'){ status('', it.label, it.info || ''); controls(); if(S.readDirs) await say(titleCase(it.t) + '. ' + (it.info || ''), NARR, tok); else await sleep(700); return; }
+  if(it.k==='note'){ await sleep(300); return; }
+  if(it.k==='dir'){ status('', 'Acotación', it.t); controls(); if(S.readDirs) await say(it.t, NARR, tok); else await sleep(800); return; }
+  if(isMine(it)) return myTurn(it, tok);
+  const cfg = VOICE[it.c[0]] || NARR;
+  status('speak', titleCase(it.who), 'Escuchá el pie'); controls();
+  for(const pt of it.p){
+    if(tok !== run.token) return;
+    if(pt.s) await say(pt.s, cfg, tok);
+    else if(S.readDirs && !pt.g) await say(pt.d, NARR, tok);
+  }
+  await sleep(150);
+}
+
+/* ---------- tu turno ---------- */
+function advMode(){ if(S.adv==='mic') return (SR && !micBlocked && navigator.onLine !== false) ? 'mic' : 'tap'; return S.adv; }
+function myTurn(it, tok){
+  return new Promise(resolve => {
+    turn = {it, tok, resolve, helped:false, done:false, prev:'', cur:'', heardSet:new Set(), rec:null};
+    maskLine(it);
+    const mode = advMode();
+    if(mode==='mic'){ status('listen', 'Tu turno', 'Decí tu línea, te escucho'); startRec(turn); }
+    else if(mode==='time'){ status('wait', 'Tu turno', 'Decila en voz alta, sigo solo'); startTimer(turn); }
+    else status('wait', 'Tu turno', 'Decila en voz alta y tocá Ya lo dije');
+    controls();
+  });
+}
+function endTurn(how){
+  const t = turn; if(!t || t.done) return;
+  t.done = true; stopRec(t); stopTimer(); revealAll(t.it);
+  const clean = !t.helped; stats.done++; if(clean) stats.clean++;
+  setBadge(t.it, clean ? 'ok' : 'help'); updateCount();
+  if(how==='mic'){ status('', 'Bien', 'Sigue la escena'); bar(1); } else status('', 'Revisá tu línea', 'Sigo en un momento');
+  controls();
+  t.next = () => { if(t.tok === run.token && turn === t){ turn = null; t.resolve(); } };
+  setTimeout(t.next, how==='mic' ? 700 : 1300 + t.it.exp.length*120);
+}
+function giveHint(){ const t = turn; if(!t || t.done) return; t.helped = true; const e = [...tokEls(t.it)].find(x => x.classList.contains('hid') || x.classList.contains('ini')); if(e) e.classList.remove('hid','ini'); }
+function peekLine(){ const t = turn; if(!t || t.done) return; t.helped = true; revealAll(t.it); }
+let timerRAF = 0;
+function startTimer(t){
+  const total = 1600 + t.it.exp.length*430/S.rate, t0 = performance.now();
+  const step = now => { if(turn !== t || t.done) return; const f = (now - t0)/total; bar(f); if(f >= 1){ endTurn('time'); return; } timerRAF = requestAnimationFrame(step); };
+  timerRAF = requestAnimationFrame(step);
+}
+function stopTimer(){ cancelAnimationFrame(timerRAF); }
+
+/* micrófono */
+const NUM = {'1':'un','2':'dos','3':'tres','4':'cuatro','5':'cinco','6':'seis','7':'siete','8':'ocho','9':'nueve','10':'diez','15':'quince','20':'veinte','50':'cincuenta','100':'cien'};
+function heardWords(t){ const out = []; t.replace(/%/g,' por ciento ').split(/[\s\-]+/).forEach(w => { const n = norm(w); if(!n) return; const nw = (/^\d{1,3}$/.test(n) && esLang()) ? Core.numEs(+n) : null; if(nw) nw.split(' ').forEach(x => out.push(x)); else out.push(n); }); return out; }
+function lev(a,b){ const m=a.length,n=b.length; if(Math.abs(m-n)>2) return 3; let prev=Array.from({length:n+1},(_,j)=>j); for(let i=1;i<=m;i++){ const cur=[i]; for(let j=1;j<=n;j++) cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1)); prev=cur; } return prev[n]; }
+function eq(a,b){ if(a===b) return true; const L=Math.max(a.length,b.length); if(Math.min(a.length,b.length)<3) return false; const d=lev(a,b); return (L>=4&&d<=1)||(L>=7&&d<=2); }
+function lcsMatch(exp, heard){
+  const n=exp.length, m=heard.length; const dp=Array.from({length:n+1},()=>new Uint16Array(m+1));
+  for(let i=1;i<=n;i++) for(let j=1;j<=m;j++) dp[i][j] = eq(exp[i-1].w, heard[j-1]) ? dp[i-1][j-1]+1 : Math.max(dp[i-1][j], dp[i][j-1]);
+  const got=new Set(); let i=n, j=m;
+  while(i>0 && j>0){ if(eq(exp[i-1].w, heard[j-1]) && dp[i][j]===dp[i-1][j-1]+1){ got.add(i-1); i--; j--; } else if(dp[i-1][j] >= dp[i][j-1]) i--; else j--; }
+  return got;
+}
+function micNet(){
+  micNetFail = true; micBlocked = true;
+  if(turn && !turn.done){ stopRec(turn); status('wait', 'Tu turno', 'Sin internet: decila y tocá Ya lo dije'); controls(); }
+  notice('El micrófono necesita internet para entenderte. Mientras no haya conexión, decí tu línea y tocá Ya lo dije. Cuando vuelva la señal, sigo escuchándote.');
+}
+function micFail(){
+  micBlocked = true; micBlockedReal = true;
+  if(turn && !turn.done){ stopRec(turn); status('wait', 'Tu turno', 'Decila en voz alta y tocá Ya lo dije'); controls(); }
+  notice('No tengo acceso al micrófono en esta vista. Abrí la página directo en el navegador del celular (Chrome en Android, Safari en iPhone) y aceptá el permiso. Mientras tanto, tocá Ya lo dije después de cada línea.');
+}
+function startRec(t){
+  let rec; try { rec = new SR(); } catch(e){ micFail(); return; }
+  t.rec = rec; rec.lang = OBRA.lang || 'es-AR'; rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 1;
+  rec.onresult = e => {
+    if(t.done || turn !== t) return;
+    let txt = ''; for(let i=0;i<e.results.length;i++) txt += ' ' + e.results[i][0].transcript;
+    t.cur = txt; const last = e.results[e.results.length-1];
+    evaluate(t, t.prev + ' ' + txt, last && last.isFinal);
+  };
+  rec.onerror = e => { if(['not-allowed','service-not-allowed','audio-capture'].includes(e.error)) micFail(); else if(e.error === 'network') micNet(); };
+  rec.onend = () => { if(t.done || turn !== t || micBlocked) return; t.prev += ' ' + t.cur; t.cur = ''; setTimeout(() => { if(!t.done && turn === t && !micBlocked) startRec(t); }, 150); };
+  try { rec.start(); } catch(e){ micFail(); }
+}
+function stopRec(t){ if(t && t.rec){ const r = t.rec; t.rec = null; r.onend = null; r.onresult = null; r.onerror = null; try { r.abort(); } catch(e) {} } }
+function evaluate(t, heardText, isFinal){
+  heardShow(heardText.trim().split(/\s+/).slice(-12).join(' '));
+  const exp = t.it.exp, n = exp.length; if(!n){ endTurn('mic'); return; }
+  lcsMatch(exp, heardWords(heardText)).forEach(k => { if(!t.heardSet.has(k)){ t.heardSet.add(k); revealTok(t.it, exp[k].t, true); } });
+  const count = t.heardSet.size; bar(count/n);
+  const need = n <= 2 ? n : Math.ceil(n*S.strict);
+  if(count >= need && ([...t.heardSet].some(k => k >= n-2) || isFinal)) endTurn('mic');
+}
+
+/* ---------- botones del ensayo ---------- */
+$('#mainBtn').onclick = () => {
+  if(!run.on) return start();
+  if(run.paused) return resume();
+  if(turn && !turn.done) return endTurn('tap');
+  if(turn && turn.done) return turn.next();
+  pause();
+};
+$('#pause').onclick = pause;
+$('#hint').onclick = giveHint;
+$('#peek').onclick = peekLine;
+$('#skip').onclick = () => { let i = run.idx + 1; while(i < ITEMS.length && ITEMS[i].k !== 'line') i++; jumpTo(Math.min(i, ITEMS.length-1)); };
+$('#back').onclick = () => { let i = run.idx - 1; while(i > 0 && !(ITEMS[i].k==='line' && !isMine(ITEMS[i]))) i--; jumpTo(Math.max(0, i)); };
+scriptEl.addEventListener('click', e => { const el = e.target.closest('.it'); if(el && el.dataset.i != null) jumpTo(+el.dataset.i); });
+document.addEventListener('visibilitychange', () => { if(document.hidden && run.on && !run.paused) pause(); });
+
+/* ---------- ajustes ---------- */
+function seg(id, key, parse){
+  const box = $(id);
+  const paint = () => box.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(String(S[key]) === b.dataset.v)));
+  box.onclick = e => { const b = e.target.closest('button'); if(!b) return; S[key] = parse ? parse(b.dataset.v) : b.dataset.v; paint(); save(); advHint(); if(run.on) prepareMasks(run.idx); };
+  paint();
+}
+function paintChips(){
+  $('#chips').innerHTML = CHARS.map(c => `<button class="chip" data-c="${esc(c.n)}" aria-pressed="${OBRA.mine.includes(c.n)}">${esc(titleCase(c.n))}<span>${c.c}</span></button>`).join('');
+}
+$('#chips').onclick = e => {
+  const b = e.target.closest('.chip'); if(!b) return;
+  const c = b.dataset.c; OBRA.mine = OBRA.mine.includes(c) ? OBRA.mine.filter(x => x !== c) : [...OBRA.mine, c];
+  b.setAttribute('aria-pressed', String(OBRA.mine.includes(c)));
+  if(!OBRA.example) save();
+  const keep = run.idx; render(); paintStart(); setCur(keep, false); updateCount();
+};
+function paintStart(){
+  $('#startSel').innerHTML = SCENES.map(s => {
+    const n = s.virtual ? 0 : LINES.filter(l => l.scn === s.i && isMine(l)).length;
+    return `<option value="${s.i}">${esc(s.label)}${s.virtual ? '' : n ? ` · ${n} tuyas` : ' · no estás'}</option>`;
+  }).join('') || '<option value="0">Desde el principio</option>';
+  const cur = SCENES.filter(s => s.i <= run.idx).pop() || SCENES[0];
+  if(cur) $('#startSel').value = cur.i;
+}
+$('#startSel').onchange = e => { const i = +e.target.value; if(run.on){ stopAll(); run.idx = i; savePos(); setCur(i, false); prepareMasks(i); } else jumpTo(i); };
+function advHint(){
+  const h = {
+    mic: SR ? 'Escucha tu voz y sigue cuando dijiste la línea. Necesita internet. Si el micrófono está bloqueado o no hay señal, pasa a modo toque.' : 'Este navegador no reconoce voz. Usá Chrome (Android) o Safari (iPhone), o elegí otro modo.',
+    time: 'Te da un tiempo según el largo de la línea, te la muestra y sigue.',
+    tap: 'Decís la línea y tocás Ya lo dije para verla y seguir.'
+  };
+  $('#advHint').textContent = h[S.adv]; $('#strictField').hidden = S.adv !== 'mic';
+}
+$('#rate').oninput = e => { S.rate = +e.target.value; $('#rateV').textContent = '· ' + S.rate.toFixed(2) + '×'; save(); };
+$('#voiceSel').onchange = e => { S.voiceURI = e.target.value; save(); hush(); sayOne(ttsText(LINES[0] ? LINES[0].p.filter(x=>x.s).map(x=>x.s).join(' ').slice(0,80) : 'Hola'), {p:1, r:1}); };
+$('#langSel').onchange = e => { OBRA.lang = e.target.value; if(!OBRA.example) save(); S.voiceURI = ''; loadVoices(); };
+$('#readDirs').onchange = e => { S.readDirs = e.target.checked; save(); };
+$('#onlyMine').onchange = e => { S.onlyMine = e.target.checked; save(); };
+function openSheet(){
+  if(run.on && !run.paused) pause();
+  paintChips(); paintStart(); advHint();
+  $('#rate').value = S.rate; $('#rateV').textContent = '· ' + (+S.rate).toFixed(2) + '×';
+  $('#readDirs').checked = S.readDirs; $('#onlyMine').checked = S.onlyMine;
+  $('#langSel').value = OBRA.lang || 'es-AR';
+  $('#sheet').hidden = false;
+}
+$('#openSet').onclick = openSheet;
+function closeSheet(){ $('#sheet').hidden = true; if(run.on){ status('', 'En pausa', 'Tocá Seguir para retomar desde esta línea'); controls(); return; } status('', 'Listo para ensayar', OBRA.mine.length ? 'Tocá Empezar o una línea para arrancar desde ahí' : 'Sin personaje: escuchás toda la obra'); }
+$('#closeSet').onclick = closeSheet;
+$('#sheet').onclick = e => { if(e.target.id === 'sheet') closeSheet(); };
+seg('#segHide','hide'); seg('#segAdv','adv'); seg('#segStrict','strict', Number);
+
+/* revisar personajes desde el ensayo: mantener apretado el título */
+$('#brand').onclick = () => { if(!$('#play').hidden && OBRA){ openReview(OBRA); } };
+
+/* ---------- exportar / importar obras ---------- */
+$('#expBtn').onclick = async () => {
+  if(!DB.obras.length){ libError('Todavía no tenés obras para exportar.'); return; }
+  libError('');
+  const data = JSON.stringify({app:'ensayador', v:1, obras: DB.obras.filter(o => !o.example), settings: S}, null, 1);
+  const name = 'ensayador-obras-' + new Date().toISOString().slice(0,10) + '.json';
+  const file = new File([data], name, {type:'application/json'});
+  try { if(navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file], title:'Mis obras del Ensayador'}); return; } } catch(e){ if(e && e.name === 'AbortError') return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+};
+$('#impBtn').onclick = () => $('#impIn').click();
+$('#impIn').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if(!f) return; libError('');
+  try {
+    const d = JSON.parse(await f.text());
+    if(!d || !Array.isArray(d.obras)) throw 0;
+    let nuevas = 0, actualizadas = 0;
+    d.obras.forEach(o => {
+      if(!o || typeof o.text !== 'string' || !o.title) return;
+      o.id = String(o.id || ('o' + Date.now().toString(36) + nuevas)); o.aliases = o.aliases || {}; o.mine = Array.isArray(o.mine) ? o.mine : []; o.pos = +o.pos || 0; o.lang = o.lang || 'es-AR'; delete o.example;
+      const i = DB.obras.findIndex(x => x.id === o.id);
+      if(i >= 0){ DB.obras[i] = o; actualizadas++; } else { DB.obras.unshift(o); nuevas++; }
+    });
+    if(!nuevas && !actualizadas) throw 0;
+    save(); renderLib();
+    libError(''); notice('');
+    $('#libErr').textContent = `Listo: ${nuevas} ${nuevas===1?'obra nueva':'obras nuevas'}${actualizadas ? ` y ${actualizadas} actualizada${actualizadas===1?'':'s'}` : ''}.`; $('#libErr').hidden = false;
+  } catch(err){ libError('Ese archivo no parece una exportación del Ensayador.'); }
+};
+
+/* ---------- instalación y conexión ---------- */
+const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+let installEv = null;
+try {
+  if(isIOS && !standalone && !localStorage.getItem('ensayador-ios-hint')) $('#instIOS').hidden = false;
+  $('#instIOSx').onclick = () => { $('#instIOS').hidden = true; try { localStorage.setItem('ensayador-ios-hint', '1'); } catch(e) {} };
+} catch(e) {}
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEv = e; if(!standalone) $('#instAnd').hidden = false; });
+$('#instAndBtn').onclick = async () => { if(!installEv) return; installEv.prompt(); try { await installEv.userChoice; } catch(e) {} installEv = null; $('#instAnd').hidden = true; };
+addEventListener('appinstalled', () => { $('#instAnd').hidden = true; });
+const netPaint = () => { document.documentElement.classList.toggle('offline', !navigator.onLine); if(navigator.onLine && micNetFail){ micNetFail = false; micBlocked = micBlockedReal; } };
+addEventListener('online', netPaint); addEventListener('offline', netPaint); netPaint();
+if('serviceWorker' in navigator && location.protocol !== 'file:'){ addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {})); }
+
+/* ---------- arranque ---------- */
+renderLib();
+show('lib');
+if(!HAS_TTS) libError('Este navegador no tiene voz sintética: las líneas de los demás se van a mostrar en pantalla con una pausa.');
+</script>
+</body>
+</html>

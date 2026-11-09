@@ -1,0 +1,4 @@
+# Netlify publica la carpeta app/ tal cual, sin compilar nada.
+[build]
+  publish = "app"
+  command = ""
