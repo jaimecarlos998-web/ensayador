@@ -459,7 +459,8 @@ function linesToCanonical(pages){
     if((l.y > p.h*0.9 || l.y < p.h*0.1) && freq[k] >= minRep && pages.length >= 3) return;
     if(l.size < bodySize*0.85 && /^\d/.test(l.t)) return;           // notas al pie
     if(l.size < bodySize*0.9 && l.y < (lowBody[pi] ?? -1)) return;  // texto chico debajo del cuerpo
-    all.push(Object.assign({}, l, {pw:p.w, page:pi}));
+    const pk = all[all.length-1];
+    all.push(Object.assign({}, l, {pw:p.w, page:pi, gap: pk && pk.page===pi ? (pk.y - l.y)/l.size : 0}));
   }));
   return classify(all, bodySize);
 }
@@ -490,7 +491,7 @@ function classify(L, bodySize){
   const centered = l => hasPos && l.x0 > base + 25 && (l.x1 - l.x0) < (right - base)*0.8 && Math.abs((l.x0+l.x1)/2 - l.pw/2) < l.pw*0.07;
   const indented = l => hasPos && l.x0 > base + 6 && !centered(l);
   const isCast = t => / \/ /.test(t) && (t.match(/:/g)||[]).length >= 2;
-  const isHead = (l) => HEAD_RE.test(l.t) && l.t.length < 70 && (isUpperLine(l.t) || centered(l) || !hasPos || l.b > 0.6 || /^[A-ZÁÉÍÓÚÑ]{4,}\b/.test(l.t));
+  const isHead = (l) => HEAD_RE.test(l.t) && l.t.length < 70 && (isUpperLine(l.t) || centered(l) || !hasPos || l.b > 0.6 || /^[A-ZÁÉÍÓÚÑ]{4,}\b/.test(l.t) || /^(tel[oó]n|fin)\b[\s.…]*$/i.test(l.t));
   const ROMAN_SCENE = /^([IVX]+\.[ivx]+)\b\.?\s*(.*)$/;
 
   // 1ª pasada: candidatos a personaje
@@ -609,6 +610,7 @@ function classify(L, bodySize){
     if(isCast(t)){ flush(); out.push(`[${t}]`); continue; }
     // continuación obligada: paréntesis abierto o renglón cortado al margen
     const startsName = (() => { const s2 = matchSpeaker(t); if(s2 && speakers.has(s2.name) && !wrapped(prev)) return true; if(!offCol(l) && (nameParen(t) || colonName(t) || looseName(t))) return true; return isUpperLine(t) && t.length <= 45 && !!knownName(t.replace(/\([^)]*\)/g,'').replace(/[.:]+$/,'')); })();
+    if(cur && !startsName && (l.gap||0) >= 2 && depthOf(cur.text) === 0 && !isHead(l) && !/[¿¡"«“]/.test(t) && (t.length <= 80 || l.it > 0.6)){ flush(); dir = {text: t}; flush(); continue; }
     if(cur && !startsName && ((depthOf(cur.text) > 0 && (cur.n = (cur.n||0) + 1) <= 12) || wrapped(prev))){ append(cur, italToDirs(t, l.im, depthOf(cur.text))); continue; }
     if(dir && !startsName && ((depthOf(dir.text) > 0 && (dir.n = (dir.n||0) + 1) <= 12) || wrapped(prev))){ append(dir, t); if(/^\(/.test(dir.text) && depthOf(dir.text)===0) flush(); continue; }
     const rs = t.match(ROMAN_SCENE);
@@ -620,7 +622,7 @@ function classify(L, bodySize){
     }
     // títulos
     if(isHead(l) && !(matchSpeaker(t) && speakers.has(matchSpeaker(t).name) && matchSpeaker(t).rest)){
-      flush(); out.push(''); out.push(t.toUpperCase().replace(/\s+/g,' ')); afterHeader = true; seen = true; continue;
+      flush(); out.push(''); out.push(t.toUpperCase().replace(/\s+/g,' ').replace(/[\s.…]{3,}$/,'')); afterHeader = true; seen = true; continue;
     }
     // parlamento con nombre en la misma línea
     const sp = matchSpeaker(t);

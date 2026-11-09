@@ -1,5 +1,5 @@
 /* Service worker del Ensayador: todo queda guardado en el teléfono. */
-const CACHE = 'ensayador-c6c4187724';
+const CACHE = 'ensayador-cd5d9e00fa';
 const PRECACHE = [
  "./",
  "fonts/alfa-slab-one-latin-400-normal.woff2",
