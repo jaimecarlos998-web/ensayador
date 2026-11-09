@@ -1530,7 +1530,7 @@ addEventListener('online', netPaint); addEventListener('offline', netPaint); net
 if('serviceWorker' in navigator && location.protocol !== 'file:'){ addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {})); }
 
 /* ---------- cafecito ---------- */
-const CAFECITO = '';   // poné acá tu enlace, por ejemplo 'https://cafecito.app/tu-usuario'
+const CAFECITO = 'https://cafecito.app/chnjaime';   // poné acá tu enlace, por ejemplo 'https://cafecito.app/tu-usuario'
 if(/^https:\/\/cafecito\.app\/[\w.-]+\/?$/.test(CAFECITO)){ $('#cafe').href = CAFECITO; $('#cafe').hidden = false; }
 
 /* ---------- arranque ---------- */
