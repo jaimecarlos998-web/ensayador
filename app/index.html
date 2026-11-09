@@ -430,6 +430,9 @@ function groupLines(items, pageH){
   return lines.map(L => {
     const body = median(L.items.filter(i=>i.s.trim()).map(i=>i.size)) || L.size;
     let its = L.items.filter(i => !(/^\d{1,3}$/.test(i.s.trim()) && i.size < body*0.8)).sort((a,b)=>a.x-b.x);
+    // versalitas: "M" + espacio sin ancho + "ADRE" (letra grande y resto más chico) es una sola palabra
+    its = its.filter((i, k) => { if(i.s.trim() || i.w > i.size*0.05) return true; const a = its[k-1], b = its[k+1];
+      return !(a && b && /\p{Lu}$/u.test(a.s) && /^\p{Lu}/u.test(b.s) && b.size < a.size*0.9); });
     // número de página en el mismo renglón que un título ("10      PRESENTACIÓN")
     const vis0 = its.filter(i => i.s.trim());
     if(pageH && (L.y > pageH*0.88 || L.y < pageH*0.12) && vis0.length >= 2){
@@ -662,8 +665,9 @@ function classify(L, bodySize){
     // continuación obligada: paréntesis abierto o renglón cortado al margen
     const startsName = (() => { const s2 = matchSpeaker(t); if(s2 && speakers.has(s2.name) && !wrapped(prev)) return true; if(!offCol(l) && (nameParen(t) || colonName(t) || looseName(t))) return true; return isUpperLine(t) && t.length <= 45 && !!knownName(t.replace(/\([^)]*\)/g,'').replace(/[.:]+$/,'')); })();
     if(cur && !startsName && (l.gap||0) >= 2 && depthOf(cur.text) === 0 && !isHead(l) && !(hanging && indented(l)) && !(prev && hasPos && Math.abs(l.x0 - prev.x0) < 3 && l.x0 > base + 6) && !/[¿¡"«“]/.test(t) && (t.length <= 80 || l.it > 0.6)){ flush(); dir = {text: t}; flush(); continue; }
-    if(cur && !startsName && ((depthOf(cur.text) > 0 && (cur.n = (cur.n||0) + 1) <= 12) || wrapped(prev))){ append(cur, italToDirs(t, l.im, depthOf(cur.text))); continue; }
-    if(dir && !startsName && ((depthOf(dir.text) > 0 && (dir.n = (dir.n||0) + 1) <= 12) || wrapped(prev))){ append(dir, t); if(/^\(/.test(dir.text) && depthOf(dir.text)===0) flush(); continue; }
+    const strongHead = isHead(l) && (isUpperLine(t) || centered(l));   // "ACTO PRIMERO" nunca sigue lo de arriba
+    if(cur && !startsName && !strongHead && ((depthOf(cur.text) > 0 && (cur.n = (cur.n||0) + 1) <= 12) || wrapped(prev))){ append(cur, italToDirs(t, l.im, depthOf(cur.text))); continue; }
+    if(dir && !startsName && !strongHead && ((depthOf(dir.text) > 0 && (dir.n = (dir.n||0) + 1) <= 12) || wrapped(prev))){ append(dir, t); if(/^\(/.test(dir.text) && depthOf(dir.text)===0) flush(); continue; }
     const rs = t.match(ROMAN_SCENE);
     if(rs){ flush(); out.push(''); out.push('ESCENA ' + rs[1]); afterHeader = false; seen = true; if(rs[2]) dir = {text: rs[2]}; continue; }
     if(/^\[[^\]]*\]?$/.test(t) && seen && !/^\[\s*(…|\.\.\.)\s*\]$/.test(t)){
