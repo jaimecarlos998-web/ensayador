@@ -424,6 +424,8 @@ const unspace = s => s.replace(/(^|\s)((?:\p{L} ){3,}\p{L})(?!\p{L})( (?=[:.,;])
 const fixCase = s => s.replace(/\p{L}+/gu, w => { w = w.replace(/(\p{Lu})l(?=\p{Lu})/gu, '$1I');   // "FERMlN": ele en lugar de I
   return /\p{Ll}\p{Lu}/u.test(w) && (w.match(/\p{Lu}/gu) || []).length >= 2 ? w.toUpperCase() : w; });
 function groupLines(items, pageH){
+  const seen = new Set();   // negrita "falsa": el mismo texto dibujado dos veces en el mismo lugar ("JJUUAANNAA")
+  items = items.filter(i => { if(!i.s.trim()) return true; const k = i.s + '|' + Math.round(i.x*2) + '|' + Math.round(i.y*2); if(seen.has(k)) return false; seen.add(k); return true; });
   items.forEach(i => { i.s = fixCase(unspace(i.s)); });
   items.sort((a,b) => (b.y - a.y) || (a.x - b.x));
   const lines=[];
@@ -557,7 +559,7 @@ function classify(L, bodySize){
   const centered = l => hasPos && l.x0 > base + 25 && (l.x1 - l.x0) < (right - base)*0.8 && Math.abs((l.x0+l.x1)/2 - l.pw/2) < l.pw*0.07;
   const indented = l => hasPos && l.x0 > base + 6 && !centered(l);
   const isCast = t => / \/ /.test(t) && (t.match(/:/g)||[]).length >= 2;
-  const isHead = (l) => HEAD_RE.test(l.t) && l.t.length < 70 && (isUpperLine(l.t) || centered(l) || !hasPos || l.b > 0.6 || /^[A-ZÁÉÍÓÚÑ]{4,}\b/.test(l.t) || /^(tel[oó]n|fin)\b[\s.…]*$/i.test(l.t));
+  const isHead = (l) => HEAD_RE.test(l.t) && l.t.length < 70 && (isUpperLine(l.t) || centered(l) || !hasPos || l.b > 0.6 || /^[A-ZÁÉÍÓÚÑ]{4,}\b/.test(l.t) || /^(tel[oó]n|fin)\b[\s.…]*$/i.test(l.t) || /^(escena|acto|cuadro|jornada)\s*([IVXLC]+|\d{1,2}|primer[oa]?|segund[oa]|tercer[oa]?|cuart[oa]|quint[oa]|[uú]nic[oa])\.?$/i.test(l.t));
   const ROMAN_SCENE = /^([IVX]+\.[ivx]+)\b\.?\s*(.*)$/;
 
   // 1ª pasada: candidatos a personaje
@@ -587,7 +589,7 @@ function classify(L, bodySize){
   const tot = k => Object.values(cand).reduce((s,c)=>s+c[k],0);
   const blockStyle = tot('block') > tot('rest');
   const speakers = new Set(Object.entries(cand).filter(([nm,c]) => {
-    if(/^(I|II|III|IV|V|VI|FIN|F I N|TELÓN|TELON|ACTO|ESCENA|NOTA|NOTAS|NOTA BENE)$/i.test(nm)) return false;
+    if(/^(I|II|III|IV|V|VI|FIN|F I N|TELÓN|TELON|ACTO|ESCENA|NOTA|NOTAS|NOTA BENE|LUGAR|ÉPOCA|EPOCA|TIEMPO|ESPACIO|ESCENARIO|ESCENOGRAF[IÍ]A|DECORADO|AMBIENTACI[OÓ]N|PERSONAJES?|AUTOR|AUTORA|DURACI[OÓ]N|SINOPSIS|ARGUMENTO|G[EÉ]NERO|M[UÚ]SICA|VESTUARIO|ILUMINACI[OÓ]N|DIRECCI[OÓ]N|DEDICATORIA)$/i.test(nm)) return false;
     if(c.loose >= 3) return true;
     if(dashStyle && c.dashl >= 1) return true;   // en guiones con "Nombre.-", basta una vez
     return Math.max(c.n, c.block) >= 2 || c.n + c.block >= 3 || castWords.has(nm.toUpperCase()) || (c.rest >= 1 && nm.length >= 3) || (blockStyle && c.block >= 1 && nm.split(/\s+/).length <= 4);
@@ -623,7 +625,7 @@ function classify(L, bodySize){
       for(let j = kw+1; j < L.length; j++){
         if(isStart(j)) return j;
         const s2 = matchSpeaker(L[j].t);
-        if(s2 && speakers.has(s2.name) && /[a-záéíóúñ]/.test(s2.rest) && s2.rest.length > 25 && !isUpperLine(s2.rest)) return j;
+        if(s2 && speakers.has(s2.name) && /[a-záéíóúñ]/.test(s2.rest) && s2.rest.length > 25 && !isUpperLine(s2.rest) && /[.!?¡¿…]/.test(s2.rest)) return j;   /* "PANFILO: campesino interesado en..." sin puntuación es descripción, no diálogo */
         const nx = L[j+1];
         const castEntry = t => /^[^(:]{2,40},\s*[^:]{1,60}\.?$/.test(t) && !/[¿¡?!]/.test(t);   // "CLAUDIO, Rey de Dinamarca."
         const alone = ((s2 && speakers.has(s2.name) && !s2.rest) || (isUpperLine(L[j].t) && knownName(L[j].t.replace(/\([^)]*\)/g,'').replace(/[.:]+$/,'')))) && !castEntry(L[j].t) && !(nx && castEntry(nx.t));
@@ -866,7 +868,8 @@ function review(p, info){
   const plural = (a, b) => a === b + 'S' || a === b + 'ES' || b === a + 'S' || b === a + 'ES';
   const W = n => n.split(/\s+/);
   const core = n => { const w = W(n); while(w.length > 1 && ART.test(w[0])) w.shift(); return w; };
-  const lev1 = (a, b) => { if(Math.abs(a.length - b.length) > 1) return false; let i = 0, j = 0, d = 0;
+  const swap1 = (a, b) => { if(a.length !== b.length) return false; const k = [...a].findIndex((c, i) => c !== b[i]); return k >= 0 && k < a.length - 1 && a[k] === b[k+1] && a[k+1] === b[k] && a.slice(k+2) === b.slice(k+2); };
+  const lev1 = (a, b) => { if(swap1(a, b)) return true; if(Math.abs(a.length - b.length) > 1) return false; let i = 0, j = 0, d = 0;
     while(i < a.length && j < b.length){ if(a[i] === b[j]){ i++; j++; continue; } if(++d > 1) return false; if(a.length > b.length) i++; else if(b.length > a.length) j++; else { i++; j++; } }
     return d + (a.length - i) + (b.length - j) <= 1; };
   // ¿small es otra forma de escribir big?
@@ -882,7 +885,8 @@ function review(p, info){
       if(b[0].startsWith(s[0]) && b[0].length - s[0].length <= 5) return true;    // CHINCHI / CHINCHILLA
       const sg = x => x.replace(/S$/, ''), gs = sg(s[0]), gb = sg(b[0]);
       const gender = gs.slice(0, -1) === gb.slice(0, -1) && /[OA]$/.test(gs) && /[OA]$/.test(gb);   // CHICOS / CHICAS, MARIO / MARIA: distintos
-      if(Math.min(count[small], count[big]) <= 2 && lev1(s[0], b[0]) && !/\d/.test(s[0] + b[0]) && !gender && !plural(s[0], b[0])) return true;   // errata de una letra
+      const lo = Math.min(count[small], count[big]), hi = Math.max(count[small], count[big]);
+      if((lo <= 2 || (lo <= 5 && lo*4 <= hi)) && lev1(s[0], b[0]) && !/\d/.test(s[0] + b[0]) && !gender && !plural(s[0], b[0])) return true;   // errata de una letra
     }
     return false;
   };
