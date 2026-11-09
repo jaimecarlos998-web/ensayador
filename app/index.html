@@ -142,11 +142,6 @@ body.running .it.cur,.it.cur{opacity:1;background:var(--panel);border-left-color
 
 /* consola */
 .dock{border-top:1px solid var(--rule);background:var(--panel);padding:10px 16px calc(env(safe-area-inset-bottom) + 12px)}
-/* deja lugar para el cartel 'Powered by Netlify' que Netlify pega abajo a la derecha */
-/* cartel "Powered by Netlify" (abajo a la derecha, plan gratis): dejar libre esa franja en todas las pantallas */
-html.netlify .dock{padding-bottom:calc(env(safe-area-inset-bottom) + 76px)}
-html.netlify .screen{padding-bottom:calc(env(safe-area-inset-bottom) + 100px)}
-html.netlify .sheet-in{padding-bottom:calc(env(safe-area-inset-bottom) + 84px)}
 .status{display:flex;align-items:center;gap:10px;min-height:26px}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--mute);flex:none}
 .dot.speak{background:var(--red)}
@@ -200,7 +195,6 @@ input[type=range]{width:100%;accent-color:var(--red)}
 </style>
 </head>
 <body>
-<script>if(/netlify\.app$/i.test(location.hostname))document.documentElement.classList.add('netlify')</script>
 <header>
   <button class="sq" id="homeBtn" aria-label="Volver a mis obras" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
   <div class="brand" id="brand">Ensayador<small id="brandSub">Aprendé tu letra</small></div>
@@ -219,9 +213,6 @@ input[type=range]{width:100%;accent-color:var(--red)}
   <input type="file" id="pdfIn" class="vh" accept="application/pdf,.pdf,text/plain,.txt">
   <div class="prog" id="prog" hidden><span id="progTxt">Leyendo…</span><div class="bar"><i id="progBar"></i></div></div>
   <div class="err" id="libErr" hidden></div>
-  <div class="moved" id="moved" hidden><b>El Ensayador se mudó de dirección.</b> Tus obras no se pasan solas:
-    <ol><li>Tocá <b>Guardar copia</b> acá abajo.</li><li>Abrí la dirección nueva y tocá <b>Restaurar copia</b> con ese archivo.</li><li>Si la tenías instalada, instalá la nueva y borrá esta.</li></ol>
-    <div class="row2"><button class="btn" id="movedSave">Guardar copia</button><a class="btn" id="movedGo">Ir a la nueva</a></div></div>
   <div class="inst" id="instIOS" hidden><button class="x" id="instIOSx" aria-label="Cerrar">✕</button><b>Instalala en tu iPhone:</b> tocá el botón <b>Compartir</b> (el cuadrado con la flecha) y elegí <b>Agregar a inicio</b>. Así abre a pantalla completa y funciona sin internet.</div>
   <div class="inst" id="instAnd" hidden><b>Instalala como app:</b> queda en tu pantalla de inicio y funciona sin internet.<button class="btn primary" id="instAndBtn">Instalar app</button></div>
   <p class="net" id="netMsg">Sin conexión: podés leer PDFs y ensayar igual. Solo el modo “Te escucho” necesita internet.</p>
@@ -1509,20 +1500,15 @@ $('#impIn').onchange = async e => {
   } catch(err){ libError('Ese archivo no parece una exportación del Ensayador.'); }
 };
 
-/* ---------- mudanza: el sitio viejo de Netlify avisa la dirección nueva ---------- */
-const NEW_HOME = 'https://jaimecarlos998-web.github.io/ensayador/';
-const OLD_HOST = /netlify\.app$/i.test(location.hostname);
-if(OLD_HOST){ $('#moved').hidden = false; $('#movedGo').href = NEW_HOME; $('#movedSave').onclick = () => $('#expBtn').click(); }
-
 /* ---------- instalación y conexión ---------- */
 const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 let installEv = null;
 try {
-  if(isIOS && !standalone && !OLD_HOST && !localStorage.getItem('ensayador-ios-hint')) $('#instIOS').hidden = false;
+  if(isIOS && !standalone && !localStorage.getItem('ensayador-ios-hint')) $('#instIOS').hidden = false;
   $('#instIOSx').onclick = () => { $('#instIOS').hidden = true; try { localStorage.setItem('ensayador-ios-hint', '1'); } catch(e) {} };
 } catch(e) {}
-addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEv = e; if(!standalone && !OLD_HOST) $('#instAnd').hidden = false; });
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEv = e; if(!standalone) $('#instAnd').hidden = false; });
 $('#instAndBtn').onclick = async () => { if(!installEv) return; installEv.prompt(); try { await installEv.userChoice; } catch(e) {} installEv = null; $('#instAnd').hidden = true; };
 addEventListener('appinstalled', () => { $('#instAnd').hidden = true; });
 const netPaint = () => { document.documentElement.classList.toggle('offline', !navigator.onLine); if(navigator.onLine && micNetFail){ micNetFail = false; micBlocked = micBlockedReal; } };

@@ -6,4 +6,4 @@
 - La app es un solo archivo: `app/index.html`. El lector de guiones está en el bloque `const Core = (() => { ... })()`.
 - Probar cambios del lector con obras reales (PDF) y comparar el texto resultante antes/después: que solo cambie lo buscado.
 - El repo tiene que ser público: GitHub Pages gratis solo publica repos públicos.
-- Netlify quedó solo para avisar la mudanza (`netlify.toml` saltea las compilaciones: cada publicación allá gasta 15 de 300 créditos por mes y al llegar a 0 pausa todos los sitios).
+- Ya no se usa Netlify (se borró): no volver a agregar `netlify.toml` ni código para su cartel.

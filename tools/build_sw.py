@@ -3,7 +3,7 @@ Correr antes de cada subida:  python3 tools/build_sw.py"""
 import os, hashlib, json
 here = os.path.dirname(os.path.abspath(__file__))
 root = os.path.join(here, '..', 'app')
-skip = {'sw.js', '_headers'}
+skip = {'sw.js'}
 files = []
 for d, _, fs in os.walk(root):
     for f in fs:
