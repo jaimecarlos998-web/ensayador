@@ -80,6 +80,11 @@ h4{font-weight:700;font-size:13px;letter-spacing:.12em;text-transform:uppercase;
 .inst .x{float:right;background:none;border:0;color:var(--mute);font-size:16px;padding:0 0 4px 10px}
 .net{display:none;margin:12px 0 0;font-size:13px;color:var(--mute)}
 html.offline .net{display:block}
+.moved{margin:16px 0 4px;background:var(--marker);color:#1b1712;border-radius:14px;padding:14px 16px;font-size:15px;line-height:1.45}
+.moved b{font-weight:700}
+.moved ol{margin:8px 0 12px;padding-left:20px}
+.moved .row2{margin-top:0}
+.moved .btn{background:#1b1712;color:var(--marker);border-color:#1b1712;text-align:center;text-decoration:none;display:block}
 .foot{font-size:13px;color:var(--mute);line-height:1.45;margin-top:22px}
 
 /* revisión */
@@ -215,6 +220,9 @@ input[type=range]{width:100%;accent-color:var(--red)}
   <input type="file" id="pdfIn" class="vh" accept="application/pdf,.pdf,text/plain,.txt">
   <div class="prog" id="prog" hidden><span id="progTxt">Leyendo…</span><div class="bar"><i id="progBar"></i></div></div>
   <div class="err" id="libErr" hidden></div>
+  <div class="moved" id="moved" hidden><b>El Ensayador se mudó de dirección.</b> Tus obras no se pasan solas:
+    <ol><li>Tocá <b>Guardar copia</b> acá abajo.</li><li>Abrí la dirección nueva y tocá <b>Restaurar copia</b> con ese archivo.</li><li>Si la tenías instalada, instalá la nueva y borrá esta.</li></ol>
+    <div class="row2"><button class="btn" id="movedSave">Guardar copia</button><a class="btn" id="movedGo">Ir a la nueva</a></div></div>
   <div class="inst" id="instIOS" hidden><button class="x" id="instIOSx" aria-label="Cerrar">✕</button><b>Instalala en tu iPhone:</b> tocá el botón <b>Compartir</b> (el cuadrado con la flecha) y elegí <b>Agregar a inicio</b>. Así abre a pantalla completa y funciona sin internet.</div>
   <div class="inst" id="instAnd" hidden><b>Instalala como app:</b> queda en tu pantalla de inicio y funciona sin internet.<button class="btn primary" id="instAndBtn">Instalar app</button></div>
   <p class="net" id="netMsg">Sin conexión: podés leer PDFs y ensayar igual. Solo el modo “Te escucho” necesita internet.</p>
@@ -1501,15 +1509,20 @@ $('#impIn').onchange = async e => {
   } catch(err){ libError('Ese archivo no parece una exportación del Ensayador.'); }
 };
 
+/* ---------- mudanza: el sitio viejo de Netlify avisa la dirección nueva ---------- */
+const NEW_HOME = 'https://jaimecarlos998-web.github.io/ensayador/';
+const OLD_HOST = /netlify\.app$/i.test(location.hostname);
+if(OLD_HOST){ $('#moved').hidden = false; $('#movedGo').href = NEW_HOME; $('#movedSave').onclick = () => $('#expBtn').click(); }
+
 /* ---------- instalación y conexión ---------- */
 const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 let installEv = null;
 try {
-  if(isIOS && !standalone && !localStorage.getItem('ensayador-ios-hint')) $('#instIOS').hidden = false;
+  if(isIOS && !standalone && !OLD_HOST && !localStorage.getItem('ensayador-ios-hint')) $('#instIOS').hidden = false;
   $('#instIOSx').onclick = () => { $('#instIOS').hidden = true; try { localStorage.setItem('ensayador-ios-hint', '1'); } catch(e) {} };
 } catch(e) {}
-addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEv = e; if(!standalone) $('#instAnd').hidden = false; });
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEv = e; if(!standalone && !OLD_HOST) $('#instAnd').hidden = false; });
 $('#instAndBtn').onclick = async () => { if(!installEv) return; installEv.prompt(); try { await installEv.userChoice; } catch(e) {} installEv = null; $('#instAnd').hidden = true; };
 addEventListener('appinstalled', () => { $('#instAnd').hidden = true; });
 const netPaint = () => { document.documentElement.classList.toggle('offline', !navigator.onLine); if(navigator.onLine && micNetFail){ micNetFail = false; micBlocked = micBlockedReal; } };
