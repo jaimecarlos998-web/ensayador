@@ -496,14 +496,17 @@ function classify(L, bodySize){
   // 1ª pasada: candidatos a personaje
   const cand = {};
   const castWords = new Set();
-  const addC = (nm, kind) => { const c = cand[nm] || (cand[nm] = {n:0, rest:0, block:0, loose:0}); c[kind]++; };
+  const addC = (nm, kind) => { const c = cand[nm] || (cand[nm] = {n:0, rest:0, block:0, loose:0, dashl:0}); c[kind]++; };
+  // "La sorda.- texto", "Nene florista: texto": nombre con palabras en minúscula
+  const LOOSE_RE = new RegExp(`^([${UP}][${LOW}]+(?:\\s+[${LOW}]+){1,2})\\s*(?:\\(([^)]*)\\))?\\s*(:|\\.\\s*[-–—]+)\\s*(.*)$`);
+  const dashStyle = L.filter(l => /^[A-ZÁÉÍÓÚÑ][^.:()]{0,44}\.\s*[-–—]\s*\S/.test(l.t)).length >= 20;
   L.forEach((l, i) => {
     if(l.blank || isHead(l)) return;
     if(isCast(l.t)){ l.t.split('/').forEach(x => { const n = clean(x.split(':')[0]); if(n) castWords.add(n.toUpperCase()); }); return; }
     const prev = L[i-1];
     const sp = matchSpeaker(l.t);
-    const lm = !sp && l.t.match(/^([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[a-záéíóúñ]+){1,2})\s*(?:\([^)]*\))?\s*(?::|\.\s*[-–—]+)\s*\S/);
-    if(lm && !wrapped(prev)) addC(lm[1], 'loose');
+    const lm = !sp && l.t.match(LOOSE_RE);
+    if(lm && lm[4] && !wrapped(prev)){ addC(lm[1], 'loose'); if(/[-–—]/.test(lm[3])) addC(lm[1], 'dashl'); }
     if(sp && !wrapped(prev)){ addC(sp.name, 'n'); if(sp.rest) addC(sp.name, 'rest'); else { const nx = L[i+1]; if(nx && !nx.blank && !isUpperLine(nx.t)) addC(sp.name, 'block'); } }
     else if(isUpperLine(l.t) && l.t.length <= 45 && !/,/.test(l.t)){
       const next = L[i+1];
@@ -519,13 +522,15 @@ function classify(L, bodySize){
   const speakers = new Set(Object.entries(cand).filter(([nm,c]) => {
     if(/^(I|II|III|IV|V|VI|FIN|F I N|TELÓN|TELON|ACTO|ESCENA|NOTA|NOTAS|NOTA BENE)$/i.test(nm)) return false;
     if(c.loose >= 3) return true;
+    if(dashStyle && c.dashl >= 1) return true;   // en guiones con "Nombre.-", basta una vez
     return Math.max(c.n, c.block) >= 2 || c.n + c.block >= 3 || castWords.has(nm.toUpperCase()) || (c.rest >= 1 && nm.length >= 3) || (blockStyle && c.block >= 1 && nm.split(/\s+/).length <= 4);
   }).map(([nm]) => nm));
   const speakerFold = new Map([...speakers].map(n => [fold(n), n]));
   const knownName = n => speakerFold.get(fold(clean(n))) || null;
   // "Nombre (indicación) texto" sin dos puntos
   const colonName = t => { const m = t.match(/^[¡¿"«]?([^:()]{1,40}?)\s*(?:\(([^)]*)\))?\s*:\s*(.*)$/); if(!m) return null; const n = knownName(m[1]); return n ? {name:n, aside:clean(m[2]||''), rest:m[3]||'', kind:'colon'} : null; };
-  const looksSpeakerLine = t => { const s2 = matchSpeaker(t); return !!((s2 && speakers.has(s2.name)) || colonName(t) || (isUpperLine(t) && t.length <= 45 && knownName(t.replace(/\([^)]*\)/g,'').replace(/[.:]+$/,'')))); };
+  const looksSpeakerLine = t => { const s2 = matchSpeaker(t); return !!((s2 && speakers.has(s2.name)) || colonName(t) || looseName(t) || (isUpperLine(t) && t.length <= 45 && knownName(t.replace(/\([^)]*\)/g,'').replace(/[.:]+$/,'')))); };
+  const looseName = t => { const m = t.match(LOOSE_RE); if(!m) return null; const n = knownName(m[1]); return n ? {name:n, aside:clean(m[2]||''), rest:m[4]||'', kind:'loose'} : null; };
   const nameParen = t => { const m = t.match(NAMEPAREN_RE); if(!m) return null; const n = knownName(m[1]); return n ? {name:n, aside:clean(m[2]), rest:m[3]||'', kind:'paren'} : null; };
 
   const spX = hasPos ? L.filter(l => { const s2 = matchSpeaker(l.t); return s2 && speakers.has(s2.name); }).map(l => l.x0) : [];
@@ -603,7 +608,7 @@ function classify(L, bodySize){
     if(/^[\[(]\s*(…|\.\.\.)\s*[\])]$/.test(t)){ flush(); out.push('[…]'); continue; }
     if(isCast(t)){ flush(); out.push(`[${t}]`); continue; }
     // continuación obligada: paréntesis abierto o renglón cortado al margen
-    const startsName = (() => { const s2 = matchSpeaker(t); if(s2 && speakers.has(s2.name) && !wrapped(prev)) return true; if(!offCol(l) && (nameParen(t) || colonName(t))) return true; return isUpperLine(t) && t.length <= 45 && !!knownName(t.replace(/\([^)]*\)/g,'').replace(/[.:]+$/,'')); })();
+    const startsName = (() => { const s2 = matchSpeaker(t); if(s2 && speakers.has(s2.name) && !wrapped(prev)) return true; if(!offCol(l) && (nameParen(t) || colonName(t) || looseName(t))) return true; return isUpperLine(t) && t.length <= 45 && !!knownName(t.replace(/\([^)]*\)/g,'').replace(/[.:]+$/,'')); })();
     if(cur && !startsName && ((depthOf(cur.text) > 0 && (cur.n = (cur.n||0) + 1) <= 12) || wrapped(prev))){ append(cur, italToDirs(t, l.im, depthOf(cur.text))); continue; }
     if(dir && !startsName && ((depthOf(dir.text) > 0 && (dir.n = (dir.n||0) + 1) <= 12) || wrapped(prev))){ append(dir, t); if(/^\(/.test(dir.text) && depthOf(dir.text)===0) flush(); continue; }
     const rs = t.match(ROMAN_SCENE);
@@ -620,7 +625,7 @@ function classify(L, bodySize){
     // parlamento con nombre en la misma línea
     const sp = matchSpeaker(t);
     if(sp && speakers.has(sp.name) && !(offCol(l) && sp.kind==='title')){ startSpeech(l, sp); continue; }
-    const np = offCol(l) ? null : (nameParen(t) || colonName(t) || dashName(l));
+    const np = offCol(l) ? null : (nameParen(t) || colonName(t) || looseName(t) || dashName(l));
     if(np){ startSpeech(l, np); continue; }
     const op = t.match(/^([^()]{1,40}?)\s*(\(.*)$/);
     if(op && knownName(op[1]) && depthOf(op[2]) > 0){ startSpeech(l, {name: knownName(op[1]), aside:'', rest: op[2]}); continue; }
@@ -695,7 +700,7 @@ function classify(L, bodySize){
   if(hasPos){
     let who=null;
     L.forEach((l) => {
-      const sp = matchSpeaker(l.t), np = nameParen(l.t);
+      const sp = matchSpeaker(l.t), np = nameParen(l.t) || looseName(l.t);
       if(sp && speakers.has(sp.name)) who = sp.name;
       else if(np) who = np.name;
       else if(isUpperLine(l.t) && knownName(l.t.replace(/[.:]+$/,''))) who = knownName(l.t.replace(/[.:]+$/,''));
