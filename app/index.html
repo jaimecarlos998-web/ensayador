@@ -310,8 +310,8 @@ const Core = (() => {
 
 const UP = 'A-ZÁÉÍÓÚÑÜÀÈÌÒÙÂÊÎÔÛÇ';
 const LOW = 'a-záéíóúñüàèìòùâêîôûç';
-const HEAD_RE = /^((PRIMER|SEGUNDO|TERCER|CUARTO|QUINTO|[UÚ]NICO)\s+(ACTO|CUADRO)|ACTO|ESCENA|CUADRO|JORNADA|PR[OÓ]LOGO|EP[IÍ]LOGO|PRIMERA PARTE|SEGUNDA PARTE|TERCERA PARTE|PARTE|FIN\b|TEL[OÓ]N\b|INTERMEDIO|ESC\.)/i;
-const ACT_LEVEL = /^((PRIMER|SEGUNDO|TERCER|CUARTO|QUINTO|[UÚ]NICO)\s+ACTO|ACTO|JORNADA|PR[OÓ]LOGO|EP[IÍ]LOGO|PRIMERA PARTE|SEGUNDA PARTE|TERCERA PARTE|PARTE|FIN\b|TEL[OÓ]N\b|INTERMEDIO)/i;
+const HEAD_RE = /^((PRIMER|SEGUNDO|TERCER|CUARTO|QUINTO|[UÚ]NICO)\s+(ACTO|CUADRO)|ACTO|ESCENA|CUADRO|JORNADA|PR[OÓ]LOGO|EP[IÍ]LOGO|PRESENTACI[OÓ]N(?![A-Za-zÁÉÍÓÚáéíóú])|PRIMERA PARTE|SEGUNDA PARTE|TERCERA PARTE|PARTE|FIN\b|TEL[OÓ]N\b|INTERMEDIO|ESC\.)/i;
+const ACT_LEVEL = /^((PRIMER|SEGUNDO|TERCER|CUARTO|QUINTO|[UÚ]NICO)\s+ACTO|ACTO|JORNADA|PR[OÓ]LOGO|EP[IÍ]LOGO|PRESENTACI[OÓ]N(?![A-Za-zÁÉÍÓÚáéíóú])|PRIMERA PARTE|SEGUNDA PARTE|TERCERA PARTE|PARTE|FIN\b|TEL[OÓ]N\b|INTERMEDIO)/i;
 const NAME_CORE = `[${UP}][${UP}0-9 '’\\-]{0,38}[${UP}0-9]|[${UP}]`;
 const INLINE_RE = new RegExp(`^(${NAME_CORE})\\s*(?:\\(([^)]{0,300})\\))?\\s*(?:,\\s*([^.:]{1,60}?))?\\s*(?:\\.|:|—|–)\\s*(.*)$`);
 const TITLE_RE = new RegExp(`^([${UP}][${LOW}]+(?:\\s+(?:de|del|la|el|y|[${UP}][${LOW}]+)){0,3})\\s*(?:\\(([^)]{0,300})\\))?\\s*(?::|\\.\\s*[-–—]+)\\s*(.*)$`);
@@ -339,11 +339,15 @@ async function extractPDF(pdfjsLib, data, onProgress){
       const ann = await page.getAnnotations();
       ann.forEach(a => { if(/Highlight|Underline|Squiggly/i.test(a.subtype) && a.rect) hl.push(normRect(a.rect)); });
     } catch(e) {}
+    // pasar todo a coordenadas de la hoja tal como se ve (hay PDF con la hoja rotada 90°), con y hacia arriba
+    const toView = r => { const v = vp.convertToViewportRectangle(r); return normRect([v[0], vp.height - v[1], v[2], vp.height - v[3]]); };
+    for(let k = 0; k < hl.length; k++) hl[k] = toView(hl[k]);
     const tc = await page.getTextContent();
     const items = [];
     tc.items.forEach(it => {
       if(!it.str) return;
-      const t = it.transform;
+      const t = pdfjsLib.Util.transform(vp.transform, it.transform);
+      if(Math.abs(t[1]) > Math.abs(t[0])) return;     // texto vertical (márgenes, lomos): no es parte del guion
       const size = Math.abs(t[3]) || Math.hypot(t[2], t[3]) || it.height || 10;
       if(!(it.fontName in fontNames)){
         let nm = '';
@@ -352,12 +356,21 @@ async function extractPDF(pdfjsLib, data, onProgress){
         fontNames[it.fontName] = nm + ' ' + fam;
       }
       const fn = fontNames[it.fontName];
-      const x = t[4], y = t[5], w = it.width;
+      const x = t[4], y = vp.height - t[5], w = it.width;
       const cx = x + w/2, cy = y + size*0.3;
       items.push({s:it.str, x, y, w, size, it:/italic|oblique|-it\b|cursiv/i.test(fn), b:/bold|black|heavy|-bd\b/i.test(fn),
                   hl: hl.some(r => cx>=r[0] && cx<=r[2] && cy>=r[1] && cy<=r[3])});
     });
-    pages.push({w:vp.width, h:vp.height, lines: groupLines(items)});
+    // libro escaneado de a dos páginas por hoja: leer la izquierda y después la derecha
+    const mid = vp.width / 2, txt = items.filter(i => i.s.trim());
+    const L = txt.filter(i => i.x + i.w <= mid + 2), R = txt.filter(i => i.x >= mid - 2);
+    // (también cuando una de las dos páginas es solo ilustración)
+    const spread = vp.width > vp.height * 1.15 && txt.length >= 3 && txt.length - L.length - R.length <= Math.max(1, txt.length*0.02);
+    if(spread){
+      const li = items.filter(i => i.x + i.w/2 < mid), ri = items.filter(i => i.x + i.w/2 >= mid).map(i => Object.assign(i, {x: i.x - mid}));
+      if(li.some(i => i.s.trim())) pages.push({w:mid, h:vp.height, lines: groupLines(li, vp.height)});
+      if(ri.some(i => i.s.trim())) pages.push({w:mid, h:vp.height, lines: groupLines(ri, vp.height)});
+    } else pages.push({w:vp.width, h:vp.height, lines: groupLines(items, vp.height)});
     if(onProgress) onProgress(n, doc.numPages);
   }
   return {title, pages, numPages: doc.numPages};
@@ -400,7 +413,12 @@ function collectHighlightRects(OPS, ops, out){
     }
   }
 }
-function groupLines(items){
+const unspace = s => s.replace(/(^|\s)((?:\p{L} ){3,}\p{L})(?!\p{L})( (?=[:.,;]))?/gu, (m0, pre, run) => pre + run.replace(/ /g, ''));
+// tipografías que salen con mayúsculas mezcladas ("pERsoNaJEs", "EscuEla"): pasar la palabra a mayúscula
+const fixCase = s => s.replace(/\p{L}+/gu, w => { w = w.replace(/(\p{Lu})l(?=\p{Lu})/gu, '$1I');   // "FERMlN": ele en lugar de I
+  return /\p{Ll}\p{Lu}/u.test(w) && (w.match(/\p{Lu}/gu) || []).length >= 2 ? w.toUpperCase() : w; });
+function groupLines(items, pageH){
+  items.forEach(i => { i.s = fixCase(unspace(i.s)); });
   items.sort((a,b) => (b.y - a.y) || (a.x - b.x));
   const lines=[];
   for(const it of items){
@@ -412,7 +430,21 @@ function groupLines(items){
   }
   return lines.map(L => {
     const body = median(L.items.filter(i=>i.s.trim()).map(i=>i.size)) || L.size;
-    const its = L.items.filter(i => !(/^\d{1,3}$/.test(i.s.trim()) && i.size < body*0.8)).sort((a,b)=>a.x-b.x);
+    let its = L.items.filter(i => !(/^\d{1,3}$/.test(i.s.trim()) && i.size < body*0.8)).sort((a,b)=>a.x-b.x);
+    // número de página en el mismo renglón que un título ("10      PRESENTACIÓN")
+    const vis0 = its.filter(i => i.s.trim());
+    if(pageH && (L.y > pageH*0.88 || L.y < pageH*0.12) && vis0.length >= 2){
+      const a = vis0[0], b = vis0[1], y = vis0[vis0.length-1], z = vis0[vis0.length-2];
+      if(/^\d{1,3}$/.test(a.s.trim()) && b.x - (a.x + a.w) > 3*a.size) its = its.filter(i => i !== a);
+      else if(/^\d{1,3}$/.test(y.s.trim()) && y.x - (z.x + z.w) > 3*y.size) its = its.filter(i => i !== y);
+    }
+    // nombre en columna sin dos puntos ("POCHO        Yo hago mucho con poco"): es quien habla o canta
+    const v2 = its.filter(i => i.s.trim());
+    if(v2.length >= 2){
+      const f = v2[0], nx = v2[1], fs = f.s.trim();
+      if(/^\p{Lu}[\p{Lu} .'’-]{1,30}( [yY])?$/u.test(fs) && /\p{Lu}{2}/u.test(fs) && !/[.:\-]$/.test(fs) && !HEAD_RE.test(fs) && nx.x - (f.x + f.w) > 2.5*f.size && /^[¡¿(«"“\p{L}]/u.test(nx.s.trim()))
+        f.s = f.s.replace(/\s*$/, ':');
+    }
     let t='', m='', prevEnd=null, chars=0, itc=0, hlc=0, bc=0;
     for(const i of its){
       if(prevEnd!=null && i.x - prevEnd > i.size*0.15 && !/\s$/.test(t) && !/^\s/.test(i.s)){ t+=' '; m+='0'; }
@@ -494,6 +526,12 @@ function matchSpeaker(t){
 
 function classify(L, bodySize){
   const hasPos = L.some(l => l.pw);
+  // "POCHO y: texto" + "TODOS: más texto" en el renglón siguiente = "POCHO Y TODOS: texto más texto"
+  L = L.filter((l, i) => {
+    const a = l.t.match(/^(\p{Lu}[\p{Lu} .'’-]{1,30}) [yY]:\s*(.*)$/u), nx = L[i+1], b = nx && !nx.blank && nx.t.match(/^(\p{Lu}[\p{Lu} .'’-]{1,30}):\s*(.*)$/u);
+    if(a && b){ nx.t = `${a[1]} Y ${b[1]}: ${a[2]} ${b[2]}`.replace(/\s+$/, ''); nx.im = ''; return false; }
+    return true;
+  });
   const base = hasPos ? (() => { const c={}; L.forEach(l => { const k=Math.round(l.x0/2)*2; c[k]=(c[k]||0)+1; });
     const need = Math.max(3, L.length*0.05);
     const b = Object.entries(c).map(([k,n])=>[+k,n]).sort((a,b)=>a[0]-b[0]).find(([,n]) => n >= need);
@@ -564,7 +602,7 @@ function classify(L, bodySize){
   const frontEnd = (() => {
     const isStart = j => isHead(L[j]) || ROMAN_SCENE.test(L[j].t);
     const limit = Math.max(40, Math.floor(L.length*0.25));
-    const kw = L.findIndex((l, j) => j < limit && /\b(PERSONAJES|Personajes|PERSONAJE|Personaje|REPARTO|Reparto|DRAMATIS PERSONAE)\b/.test(l.t));
+    const kw = L.findIndex((l, j) => j < limit && (/\b(PERSONAJES|Personajes|PERSONAJE|Personaje|REPARTO|Reparto|DRAMATIS PERSONAE)\b/.test(l.t) || /^\W*(personajes?|reparto)\W*$/i.test(l.t)));
     if(kw >= 0){
       for(let j = kw+1; j < L.length; j++){
         if(isStart(j)) return j;
@@ -584,6 +622,7 @@ function classify(L, bodySize){
   const backStart = (() => {
     for(let j = Math.max(frontEnd, Math.floor(L.length*0.5)); j < L.length; j++){
       const t = L[j].t;
+      if(/^(FIN|TEL[OÓ]N)\b[\s.…]*$/i.test(t) && L.slice(j+1, j+81).filter(x => looksSpeakerLine(x.t)).length < 3 && j + 1 < L.length) return j + 1;
       if(t.length < 60 && (isUpperLine(t) || L[j].b > 0.6) && /^\[?(GLOSARIO|VOCABULARIO|NOTAS?\b|BIBLIOGRAF[IÍ]A|ACTIVIDADES|ANEXOS?\b|AP[EÉ]NDICE|SOBRE EL AUTOR|ACERCA DEL AUTOR|[IÍ]NDICE\b|CRONOLOG[IÍ]A|GU[IÍ]A DE LECTURA)/i.test(t)) return j;
     }
     return L.length;
@@ -605,7 +644,8 @@ function classify(L, bodySize){
     if(dir){ emitDir(dir.text); dir = null; }
   };
   const titleName = n => n.charAt(0) + n.slice(1).toLowerCase();
-  const append = (o, t) => { t = t.trim(); if(!t) return; o.text = /[^\s-]-$/.test(o.text) && /^[a-záéíóúñ]/.test(t) ? o.text.slice(0,-1) + t : (o.text ? o.text + ' ' : '') + t; };
+  const append = (o, t) => { t = t.trim(); if(!t) return; const lastW = (o.text.match(/\S*$/) || [''])[0];
+    o.text = /[^\s-]-$/.test(o.text) && /^[a-záéíóúñ]/.test(t) ? (/-./.test(lastW.slice(0,-1)) ? o.text + t : o.text.slice(0,-1) + t) : (o.text ? o.text + ' ' : '') + t; };
   const restOf = (l, rest) => { const off = l.t.length - rest.length; return italToDirs(rest, l.im ? l.im.slice(off) : '', 0); };
   const startSpeech = (l, sp) => {
     flush(); afterHeader = false; seen = true;
@@ -622,7 +662,7 @@ function classify(L, bodySize){
     if(isCast(t)){ flush(); out.push(`[${t}]`); continue; }
     // continuación obligada: paréntesis abierto o renglón cortado al margen
     const startsName = (() => { const s2 = matchSpeaker(t); if(s2 && speakers.has(s2.name) && !wrapped(prev)) return true; if(!offCol(l) && (nameParen(t) || colonName(t) || looseName(t))) return true; return isUpperLine(t) && t.length <= 45 && !!knownName(t.replace(/\([^)]*\)/g,'').replace(/[.:]+$/,'')); })();
-    if(cur && !startsName && (l.gap||0) >= 2 && depthOf(cur.text) === 0 && !isHead(l) && !/[¿¡"«“]/.test(t) && (t.length <= 80 || l.it > 0.6)){ flush(); dir = {text: t}; flush(); continue; }
+    if(cur && !startsName && (l.gap||0) >= 2 && depthOf(cur.text) === 0 && !isHead(l) && !(hanging && indented(l)) && !(prev && hasPos && Math.abs(l.x0 - prev.x0) < 3 && l.x0 > base + 6) && !/[¿¡"«“]/.test(t) && (t.length <= 80 || l.it > 0.6)){ flush(); dir = {text: t}; flush(); continue; }
     if(cur && !startsName && ((depthOf(cur.text) > 0 && (cur.n = (cur.n||0) + 1) <= 12) || wrapped(prev))){ append(cur, italToDirs(t, l.im, depthOf(cur.text))); continue; }
     if(dir && !startsName && ((depthOf(dir.text) > 0 && (dir.n = (dir.n||0) + 1) <= 12) || wrapped(prev))){ append(dir, t); if(/^\(/.test(dir.text) && depthOf(dir.text)===0) flush(); continue; }
     const rs = t.match(ROMAN_SCENE);
