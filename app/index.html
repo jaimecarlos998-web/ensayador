@@ -91,6 +91,12 @@ html.offline .net{display:block}
 .stat{background:var(--panel);border:1px solid var(--rule);border-radius:12px;padding:8px 12px;font-weight:600;font-size:14px;color:var(--mute)}
 .stat b{color:var(--ink);font-size:18px;font-variant-numeric:tabular-nums;margin-right:4px}
 .tinput{width:100%;background:#29231e;border:1px solid var(--rule);border-radius:12px;padding:12px;font-family:var(--body);font-size:18px;font-weight:600}
+.check{background:var(--panel);border:1px solid var(--rule);border-left:3px solid var(--marker);border-radius:12px;padding:10px 12px;font-size:14.5px;line-height:1.4;margin-bottom:8px}
+.check .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:9px}
+.check button{border-radius:10px;border:1px solid var(--rule);background:#29231e;padding:8px 12px;font-weight:700;font-size:14px}
+.check button.pri{background:var(--marker);color:#1b1712;border-color:var(--marker)}
+.check q{font-family:var(--body);font-style:italic;color:var(--mute);display:block;margin-top:6px;font-size:13.5px}
+.check q::before,.check q::after{content:none}
 .notice{margin-top:10px;font-size:14px;line-height:1.4;color:#1b1712;background:var(--marker);border-radius:12px;padding:10px 12px;display:flex;gap:8px;align-items:flex-start}
 .notice button{margin-left:auto;background:none;border:0;font-weight:700;color:#1b1712;padding:0 2px}
 .crows{display:flex;flex-direction:column;border:1px solid var(--rule);border-radius:14px;overflow:hidden}
@@ -239,6 +245,7 @@ input[type=range]{width:100%;accent-color:var(--red)}
   <h4>Resumen</h4>
   <div class="stats" id="rStats"></div>
   <div class="notice" id="rMarked" hidden></div>
+  <div id="rChecks" hidden><h4>Para revisar</h4><div id="rCheckList"></div></div>
   <h4>¿Quién sos?</h4>
   <p class="lead" style="font-size:14.5px;margin-bottom:10px">Tocá tu personaje (podés marcar más de uno). Si un mismo personaje aparece con dos nombres, por ejemplo <em>MARTA</em> y <em>DOÑA MARTA</em>, unilos con el menú de la derecha.</p>
   <div class="crows" id="rChars"></div>
@@ -671,7 +678,7 @@ function classify(L, bodySize){
     if(/^[\[(]\s*(…|\.\.\.)\s*[\])]$/.test(t)){ flush(); out.push('[…]'); continue; }
     if(isCast(t)){ flush(); out.push(`[${t}]`); continue; }
     // continuación obligada: paréntesis abierto o renglón cortado al margen
-    const startsName = (() => { const s2 = matchSpeaker(t); if(s2 && speakers.has(s2.name) && !wrapped(prev)) return true; if(!offCol(l) && (nameParen(t) || colonName(t) || looseName(t))) return true; return isUpperLine(t) && t.length <= 45 && !!knownName(t.replace(/\([^)]*\)/g,'').replace(/[.:]+$/,'')); })();
+    const startsName = (() => { const s2 = matchSpeaker(t); if(s2 && speakers.has(s2.name) && (!wrapped(prev) || /^[^.:]{1,45}\.\s*[-–—]/.test(t))) return true; /* "NOMBRE.-" vale aunque el renglón de arriba parezca cortado */ if(!offCol(l) && (nameParen(t) || colonName(t) || looseName(t))) return true; return isUpperLine(t) && t.length <= 45 && !!knownName(t.replace(/\([^)]*\)/g,'').replace(/[.:]+$/,'')); })();
     if(cur && !startsName && (l.gap||0) >= 2 && depthOf(cur.text) === 0 && !isHead(l) && !(hanging && indented(l)) && !(prev && hasPos && Math.abs(l.x0 - prev.x0) < 3 && l.x0 > base + 6) && !/[¿¡"«“]/.test(t) && (t.length <= 80 || l.it > 0.6)){ flush(); dir = {text: t}; flush(); continue; }
     const strongHead = isHead(l) && (isUpperLine(t) || centered(l));   // "ACTO PRIMERO" nunca sigue lo de arriba
     if(cur && !startsName && !strongHead && ((depthOf(cur.text) > 0 && (cur.n = (cur.n||0) + 1) <= 12) || wrapped(prev))){ append(cur, italToDirs(t, l.im, depthOf(cur.text))); continue; }
@@ -745,6 +752,12 @@ function classify(L, bodySize){
     if(cur && markedDirs && indented(l) && l.it < 0.3 && !hanging && (speakerX == null || offCol(l))){ append(cur, t); continue; }
     // parlamentos con sangría de primera línea: un renglón con esa misma sangría, sin nombre ni paréntesis, sigue siendo del mismo personaje
     if(cur && speakerX != null && speakerX > base + 6 && !offCol(l) && l.it < 0.3 && !/^[(\[]/.test(t)){ append(cur, italToDirs(t, l.im, depthOf(cur.text))); continue; }
+    // ...y si una acotación lo cortó, el texto que sigue con esa sangría vuelve al último que hablaba
+    if(!cur && speakerX != null && speakerX > base + 6 && !offCol(l) && l.it < 0.3 && !/^[(\[]/.test(t) && !isHead(l)){
+      if(dir) flush();
+      let k = out.length - 1; while(k >= 0 && /^\(/.test(out[k])) k--;
+      if(k >= 0 && k < out.length - 1 && /^[^\[(].*?: /.test(out[k])){ cur = {name: out[k].split(/ \(|:/)[0], aside:'', text:''}; append(cur, italToDirs(t, l.im, 0)); continue; }
+    }
     // acotación en cursiva o con sangría
     const looksDir = (l.it > 0.6) || (indented(l) && !hanging);
     if(looksDir){
@@ -839,7 +852,88 @@ function splitParts(raw){
   return parts.length ? parts : [{s:''}];
 }
 
-return {extractPDF, linesToCanonical, textLines, classify, parseCanonical, isUpperLine, numEs};
+/* ---------- 4. avisos para revisar ---------- */
+// p: resultado de parseCanonical (con los alias aplicados). info: {pages, title, noMerge: ["A>B"]}
+function review(p, info){
+  info = info || {};
+  const out = [];
+  const lines = p.items.filter(i => i.k === 'line');
+  const count = {}; p.chars.forEach(c => count[c.n] = c.c);
+  const names = p.chars.map(c => c.n);
+  const GROUP = /^(TODOS|TODAS|VARIOS|VARIAS|LOS DEM[AÁ]S|LOS DOS|LAS DOS|VOCES|AMBOS|AMBAS|CORO|OTRO|OTRA|OTROS|OTRAS|LOS TRES|TODO EL MUNDO)$/;
+  const ART = /^(EL|LA|LOS|LAS|DON|DOÑA|SR\.?|SRA\.?|SEÑOR|SEÑORA|SEÑORITA)$/;
+  const GENERIC = /^(UN|UNA|UNOS|UNAS|PRIMER|PRIMERO|PRIMERA|SEGUNDO|SEGUNDA|TERCER|TERCERO|TERCERA|CUARTO|CUARTA|VARIOS|VARIAS|ALGUNOS|ALGUNAS|DOS|TRES|CUATRO|OTRO|OTRA)\b/;
+  const plural = (a, b) => a === b + 'S' || a === b + 'ES' || b === a + 'S' || b === a + 'ES';
+  const W = n => n.split(/\s+/);
+  const core = n => { const w = W(n); while(w.length > 1 && ART.test(w[0])) w.shift(); return w; };
+  const lev1 = (a, b) => { if(Math.abs(a.length - b.length) > 1) return false; let i = 0, j = 0, d = 0;
+    while(i < a.length && j < b.length){ if(a[i] === b[j]){ i++; j++; continue; } if(++d > 1) return false; if(a.length > b.length) i++; else if(b.length > a.length) j++; else { i++; j++; } }
+    return d + (a.length - i) + (b.length - j) <= 1; };
+  // ¿small es otra forma de escribir big?
+  const sameish = (small, big) => {
+    if(small === big || GROUP.test(small) || GROUP.test(big) || /\sY\s|,/.test(small + ' ' + big)) return false;
+    if(GENERIC.test(small) || GENERIC.test(big)) return false;                     // UN RUSO, PRIMER CONSEJERO: roles genéricos, suelen ser distintos
+    const s = core(small), b = core(big);
+    if(s.join(' ') === b.join(' ')) return true;                                   // EL CABLE / CABLE
+    if(plural(s.join(' '), b.join(' '))) return false;                            // NOBLES / EL NOBLE
+    if(b.length > s.length && b.slice(-s.length).join(' ') === s.join(' ')) return true;   // CAPITÁN BORDURA / BORDURA
+    if(b.length > s.length && b.slice(0, s.length).join(' ') === s.join(' ') && !ART.test(b[s.length] || '')) return true;   // STANISLAO LECZINSKY / STANISLAO, SEPULTURERO 1 / SEPULTURERO
+    if(s.length === 1 && b.length === 1 && s[0].length >= 4){
+      if(b[0].startsWith(s[0]) && b[0].length - s[0].length <= 5) return true;    // CHINCHI / CHINCHILLA
+      const sg = x => x.replace(/S$/, ''), gs = sg(s[0]), gb = sg(b[0]);
+      const gender = gs.slice(0, -1) === gb.slice(0, -1) && /[OA]$/.test(gs) && /[OA]$/.test(gb);   // CHICOS / CHICAS, MARIO / MARIA: distintos
+      if(Math.min(count[small], count[big]) <= 2 && lev1(s[0], b[0]) && !/\d/.test(s[0] + b[0]) && !gender && !plural(s[0], b[0])) return true;   // errata de una letra
+    }
+    return false;
+  };
+  const no = new Set(info.noMerge || []);
+  const done = new Set();
+  [...names].sort((a, b) => count[a] - count[b]).forEach(small => {
+    if(done.has(small)) return;
+    const cands = names.filter(big => big !== small && count[big] >= count[small] && !done.has(big) && !no.has(small + '>' + big) && (sameish(small, big) || sameish(big, small)))
+      .sort((a, b) => count[b] - count[a]).slice(0, 3);
+    if(!cands.length) return;
+    done.add(small);
+    out.push({type:'merge', from: small, to: cands, text: `¿${small} (${count[small]}) es ${cands.length > 1 ? 'el mismo que alguno de estos' : 'el mismo personaje que ' + cands[0] + ' (' + count[cands[0]] + ')'}?`});
+  });
+  // nombre de otro personaje pegado adentro de un parlamento ("… peores. La sorda.- ¿Adónde…")
+  const known = names.filter(n => n.length >= 3 && !GROUP.test(n)).sort((a, b) => b.length - a.length).map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const KN = known.length ? new RegExp(`[.!?…»"”)]\\s+(${known.join('|')})\\s*\\.\\s*[-–—]+\\s`, 'i') : null;
+  const KC = known.length ? new RegExp(`[.!?…»"”)]\\s+(${known.join('|')})\\s*:\\s`) : null;
+  const TC = /[.!?…»"”)]\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[a-záéíóúñ]+){0,2})\s*\.\s*[-–—]+\s/;
+  const glued = [];
+  lines.forEach(l => {
+    const txt = l.p.map(x => x.s != null ? x.s : '(' + x.d + ')').join(' ');
+    const m = (KN && txt.match(KN)) || (KC && txt.match(KC)) || txt.match(TC);
+    if(m && m[1].toUpperCase() !== l.who) glued.push({find: m[1], who: l.who});
+  });
+  if(glued.length === 1) out.push({type:'glued', find: glued[0].find, text: `Parece que en un parlamento de ${glued[0].who} quedó pegado otro personaje: “${glued[0].find}”.`});
+  else if(glued.length > 1){ const ns = [...new Set(glued.map(g => g.find))];
+    out.push({type:'glued', find: glued[0].find, text: `En ${glued.length} parlamentos parece haber otro personaje pegado (${ns.slice(0, 4).map(n => '“' + n + '”').join(', ')}${ns.length > 4 ? '…' : ''}). Corregilos con Corregir texto: cada personaje en su renglón.`}); }
+  // acotaciones que parecen texto hablado
+  const spoken = p.items.filter(i => i.k === 'dir' && i.t.length >= 25 && /[¿¡]/.test(i.t));
+  if(spoken.length) out.push({type:'spoken', find: '(' + spoken[0].t.slice(0, 40), items: spoken.slice(0, 5).map(i => i.t), text: spoken.length === 1 ? 'Una acotación parece texto hablado (tiene ¿? o ¡!): fijate si es de algún personaje.' : `${spoken.length} acotaciones parecen texto hablado (tienen ¿? o ¡!): fijate si son de algún personaje.`});
+  // tramos largos sin personaje dentro de la obra (canciones, poemas)
+  const firstHead = p.items.findIndex(i => i.k === 'act' || i.k === 'scene' || i.k === 'line');
+  const lastLine = p.items.map(i => i.k).lastIndexOf('line');
+  let run = [], scene = ''; const runs = [];
+  const flushRun = () => { if(run.length >= 4) runs.push({find: '[' + run[0].t.slice(0, 40), scene, n: run.length}); run = []; };
+  p.items.forEach((it, i) => {
+    if(it.k === 'scene' || it.k === 'act') scene = it.t.charAt(0) + it.t.slice(1).toLowerCase();
+    if(it.k === 'note' && i > firstHead && i < lastLine) run.push(it); else flushRun();
+  });
+  flushRun();
+  if(runs.length){ const sc = [...new Set(runs.map(r => r.scene).filter(Boolean))];
+    out.push({type:'loose', find: runs[0].find, text: (runs.length === 1 ? `Hay ${runs[0].n} renglones seguidos sin personaje` : `Hay ${runs.length} tramos de versos sin personaje`) + (sc.length ? ` (${sc.slice(0, 4).join(', ')}${sc.length > 4 ? '…' : ''})` : '') + '. Si son canciones o poemas que dice alguien, asignáselos con Corregir texto.'}); }
+  // muy pocos parlamentos para el tamaño del PDF
+  if(info.pages >= 3 && lines.length / info.pages < 3) out.push({type:'sparse', text: `Encontré solo ${lines.length} parlamentos en ${info.pages} páginas. Puede que el PDF tenga un formato que no leo bien: revisá el texto.`});
+  // título con autor u otras cosas pegadas
+  const t = (info.title || '').trim(), seg = t.split(/\s+[-–—]\s+/)[0].trim();
+  if(seg && seg !== t && seg.length >= 2) out.push({type:'title', title: seg, text: `¿El título es “${seg}”?`});
+  return out;
+}
+
+return {extractPDF, linesToCanonical, textLines, classify, parseCanonical, isUpperLine, numEs, review};
 })();
 if(typeof module !== 'undefined') module.exports = Core;
 
@@ -960,6 +1054,7 @@ $('#pdfIn').onchange = async e => {
       libError('Leí el texto del PDF pero no encontré parlamentos con nombre de personaje. Si el formato es poco común, copiá el texto y usá "Pegar texto": ahí podés corregirlo a mano con el formato NOMBRE: texto.');
       return;
     }
+    res.pages = r.numPages;
     analyze(res, title);
   } catch(err){
     progress(null);
@@ -976,7 +1071,7 @@ $('#pasteGo').onclick = () => {
 /* ---------- revisión ---------- */
 let DRAFT = null;   // obra en revisión
 function analyze(res, title){
-  DRAFT = {id: 'o' + Date.now().toString(36), title, text: res.text, aliases:{}, mine: [], lang:'es-AR', pos:0, marked: res.marked || []};
+  DRAFT = {id: 'o' + Date.now().toString(36), title, text: res.text, aliases:{}, mine: [], lang:'es-AR', pos:0, marked: res.marked || [], pages: res.pages || 0, noMerge: []};
   const p = Core.parseCanonical(DRAFT.text, {});
   DRAFT.mine = DRAFT.marked.filter(n => p.chars.some(c => c.n===n));
   renderReview(); show('review');
@@ -1004,8 +1099,45 @@ function renderReview(){
       <select data-alias="${esc(c.n)}" aria-label="Unir ${esc(c.n)} con otro personaje"><option value="">${merged?'Separar':'Unir con…'}</option>${targets.filter(t=>t!==c.n && !d.aliases[t]).map(t=>`<option value="${esc(t)}" ${to===t?'selected':''}>${esc(t)}</option>`).join('')}</select>
     </div>`;
   }).join('');
+  renderChecks(p);
   renderPreview(p);
 }
+/* avisos "Para revisar" */
+function renderChecks(p){
+  const d = DRAFT, list = Core.review(p, {pages: d.pages, title: d.title, noMerge: d.noMerge});
+  $('#rChecks').hidden = !list.length;
+  $('#rCheckList').innerHTML = list.map(c => {
+    let acts = '';
+    if(c.type === 'merge') acts = c.to.map((t, i) => `<button class="${i ? '' : 'pri'}" data-merge="${esc(c.from)}" data-to="${esc(t)}">${c.to.length > 1 ? 'Es ' + esc(titleCase(t)) : 'Unir'}</button>`).join('') + `<button data-nomerge="${esc(c.from)}" data-to="${esc(c.to.join('|'))}">Son distintos</button>`;
+    else if(c.type === 'title') acts = `<button class="pri" data-title="${esc(c.title)}">Usar “${esc(c.title)}”</button>`;
+    else acts = `<button data-find="${esc(c.find || '')}">Ver en el texto</button>`;
+    const ex = c.items ? c.items.slice(0, 2).map(t => `<q>(${esc(t.length > 110 ? t.slice(0, 110) + '…' : t)})</q>`).join('') : '';
+    return `<div class="check">${esc(c.text)}${ex}<div class="acts">${acts}</div></div>`;
+  }).join('');
+}
+function mergeAlias(from, to){
+  const d = DRAFT; d.aliases[from] = to;
+  Object.keys(d.aliases).forEach(k => { if(d.aliases[k] === from) d.aliases[k] = to; });
+  if(d.mine.includes(from)) d.mine = [...new Set(d.mine.filter(x => x !== from).concat(to))];
+  renderReview();
+}
+// abrir el editor con el renglón buscado a la vista y seleccionado
+function editAt(find){
+  $('#edTxt').value = DRAFT.text; show('edit');
+  const ta = $('#edTxt'), i = find ? DRAFT.text.indexOf(find) : -1;
+  if(i < 0) return;
+  const start = DRAFT.text.lastIndexOf('\n', i) + 1, endNl = DRAFT.text.indexOf('\n', i), end = endNl < 0 ? DRAFT.text.length : endNl;
+  ta.value = DRAFT.text.slice(0, start); const h = ta.scrollHeight; ta.value = DRAFT.text;
+  try { ta.focus({preventScroll:true}); } catch(e) { ta.focus(); }
+  ta.setSelectionRange(start, end); ta.scrollTop = Math.max(0, h - ta.clientHeight/3);
+}
+$('#rCheckList').onclick = e => {
+  const b = e.target.closest('button'); if(!b) return;
+  if(b.dataset.merge) return mergeAlias(b.dataset.merge, b.dataset.to);
+  if(b.dataset.nomerge){ DRAFT.noMerge = (DRAFT.noMerge || []).concat(b.dataset.to.split('|').map(t => b.dataset.nomerge + '>' + t)); return renderReview(); }
+  if(b.dataset.title){ DRAFT.title = b.dataset.title; return renderReview(); }
+  if(b.dataset.find != null) return editAt(b.dataset.find);
+};
 function renderPreview(p){
   const items = p.items.slice(0, 40);
   const mineSet = new Set(DRAFT.mine.map(n => DRAFT.aliases[n] || n));
@@ -1022,8 +1154,8 @@ $('#rChars').onclick = e => {
 $('#rChars').onchange = e => {
   const s = e.target.closest('[data-alias]'); if(!s) return;
   const from = s.dataset.alias, to = s.value;
-  if(to){ DRAFT.aliases[from] = to; Object.keys(DRAFT.aliases).forEach(k => { if(DRAFT.aliases[k]===from) DRAFT.aliases[k]=to; }); if(DRAFT.mine.includes(from)) DRAFT.mine = [...new Set(DRAFT.mine.filter(x=>x!==from).concat(to))]; }
-  else delete DRAFT.aliases[from];
+  if(to) return mergeAlias(from, to);
+  delete DRAFT.aliases[from];
   renderReview();
 };
 $('#rEdit').onclick = () => { $('#edTxt').value = DRAFT.text; show('edit'); };
