@@ -528,6 +528,13 @@ function matchSpeaker(t){
 
 function classify(L, bodySize){
   const hasPos = L.some(l => l.pw);
+  // ordinales en el nombre: "CÓMICO 1.º.-", "CÓMICO l.º.-" (ele por uno), "CÓMICO 4º" -> "CÓMICO 1.-", "CÓMICO 4"
+  const ORD = /([A-ZÁÉÍÓÚÑ]{3,})\s*(?:(\d{1,2})|l)\s*\.?\s*[ºª°]/g;
+  L.forEach(l => { if(l.blank || !/[ºª°]/.test(l.t)) return;
+    const ms = [...l.t.matchAll(ORD)].filter(m => m.index === 0 || /^[A-ZÁÉÍÓÚÑ0-9ºª° ,.-]*$/.test(l.t.slice(0, m.index)));   // solo en nombres (al principio o en una lista de nombres)
+    for(const m of ms.reverse()){ const rep = m[1] + ' ' + (m[2] || '1');
+      l.t = l.t.slice(0, m.index) + rep + l.t.slice(m.index + m[0].length);
+      if(l.im) l.im = l.im.slice(0, m.index) + '0'.repeat(rep.length) + l.im.slice(m.index + m[0].length); } });
   // "POCHO y: texto" + "TODOS: más texto" en el renglón siguiente = "POCHO Y TODOS: texto más texto"
   L = L.filter((l, i) => {
     const a = l.t.match(/^(\p{Lu}[\p{Lu} .'’-]{1,30}) [yY]:\s*(.*)$/u), nx = L[i+1], b = nx && !nx.blank && nx.t.match(/^(\p{Lu}[\p{Lu} .'’-]{1,30}):\s*(.*)$/u);
@@ -611,7 +618,8 @@ function classify(L, bodySize){
         const s2 = matchSpeaker(L[j].t);
         if(s2 && speakers.has(s2.name) && /[a-záéíóúñ]/.test(s2.rest) && s2.rest.length > 25 && !isUpperLine(s2.rest)) return j;
         const nx = L[j+1];
-        const alone = (s2 && speakers.has(s2.name) && !s2.rest) || (isUpperLine(L[j].t) && knownName(L[j].t.replace(/\([^)]*\)/g,'').replace(/[.:]+$/,'')));
+        const castEntry = t => /^[^(:]{2,40},\s*[^:]{1,60}\.?$/.test(t) && !/[¿¡?!]/.test(t);   // "CLAUDIO, Rey de Dinamarca."
+        const alone = ((s2 && speakers.has(s2.name) && !s2.rest) || (isUpperLine(L[j].t) && knownName(L[j].t.replace(/\([^)]*\)/g,'').replace(/[.:]+$/,'')))) && !castEntry(L[j].t) && !(nx && castEntry(nx.t));
         if(alone && nx && /[a-záéíóúñ]/.test(nx.t) && nx.t.length > 15 && !isUpperLine(nx.t)) return j;
       }
       return 0;
@@ -735,6 +743,8 @@ function classify(L, bodySize){
     // continuación con sangría francesa
     if(cur && hanging && indented(l)){ append(cur, italToDirs(t, l.im, depthOf(cur.text))); continue; }
     if(cur && markedDirs && indented(l) && l.it < 0.3 && !hanging && (speakerX == null || offCol(l))){ append(cur, t); continue; }
+    // parlamentos con sangría de primera línea: un renglón con esa misma sangría, sin nombre ni paréntesis, sigue siendo del mismo personaje
+    if(cur && speakerX != null && speakerX > base + 6 && !offCol(l) && l.it < 0.3 && !/^[(\[]/.test(t)){ append(cur, italToDirs(t, l.im, depthOf(cur.text))); continue; }
     // acotación en cursiva o con sangría
     const looksDir = (l.it > 0.6) || (indented(l) && !hanging);
     if(looksDir){
