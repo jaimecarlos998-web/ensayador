@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Ensayador de obras</title>
 <link rel="stylesheet" href="fonts/fonts.css">
 <link rel="manifest" href="manifest.webmanifest">
@@ -152,6 +152,14 @@ html.netlify .sheet-in{padding-bottom:calc(env(safe-area-inset-bottom) + 84px)}
 .stxt{font-weight:600;font-size:15.5px;line-height:1.25;flex:1;min-width:0}
 .stxt small{display:block;font-weight:500;color:var(--mute);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pill{border:1px solid var(--rule);background:#29231e;border-radius:99px;padding:7px 14px;font-weight:700;font-size:13px;flex:none}
+.typebox{display:flex;gap:8px;margin-top:8px}
+.typebox input{flex:1;min-width:0;font-family:var(--body);font-size:16px;line-height:1.3;color:var(--ink);background:var(--bg);border:1px solid var(--rule);border-radius:12px;padding:11px 12px}
+.typebox input::placeholder{color:var(--mute)}
+.typebox.turn input{border-color:var(--marker)}
+.typebox button{flex:none;border-radius:12px;border:1px solid var(--rule);background:#29231e;font-weight:700;font-size:15px;padding:0 16px}
+.typebox.turn button{background:var(--red);border-color:var(--red);color:#fff}
+.seg.four button{font-size:13px;padding:11px 3px}
+body.typing .heard{display:none}
 .heard{font-family:var(--body);font-style:italic;font-size:14px;color:var(--mute);min-height:20px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bar{height:4px;background:var(--rule);border-radius:2px;overflow:hidden;margin-top:6px}
 .bar i{display:block;height:100%;width:0;background:var(--marker);transition:width .2s}
@@ -260,6 +268,7 @@ input[type=range]{width:100%;accent-color:var(--red)}
     <button class="pill" id="pause" hidden>Pausar</button>
   </div>
   <div class="heard" id="heard"></div>
+  <form class="typebox" id="typeBox" hidden autocomplete="off"><input id="typeIn" type="text" enterkeyhint="send" autocapitalize="sentences" spellcheck="false" aria-label="Escribí tu línea" placeholder="Escribí tu línea…"><button type="submit" id="typeGo">Listo</button></form>
   <div class="bar"><i id="bar"></i></div>
   <div class="ctrls">
     <button class="c" id="back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.5-5.8"/><path d="M4 4v4h4"/></svg>Repetir</button>
@@ -280,7 +289,7 @@ input[type=range]{width:100%;accent-color:var(--red)}
       <div class="seg" id="segHide"><button data-v="hidden">Tapadas</button><button data-v="initials">Iniciales</button><button data-v="visible">Enteras</button></div>
       <span class="hint">Las palabras que vas diciendo se destapan solas.</span></div>
     <div class="field"><span class="lbl">En tu turno</span>
-      <div class="seg" id="segAdv"><button data-v="mic">Te escucho</button><button data-v="time">Espero y sigo</button><button data-v="tap">Tocás vos</button></div>
+      <div class="seg four" id="segAdv"><button data-v="mic">Te escucho</button><button data-v="type">Escribís</button><button data-v="time">Espero y sigo</button><button data-v="tap">Tocás vos</button></div>
       <span class="hint" id="advHint"></span></div>
     <div class="field" id="strictField"><span class="lbl">Qué tan exacto tenés que decirlo</span>
       <div class="seg" id="segStrict"><button data-v="0.5">Más o menos</button><button data-v="0.7">Bastante</button><button data-v="0.85">Al pie de la letra</button></div></div>
@@ -1107,12 +1116,16 @@ function controls(){
   const inTurn = turn && !turn.done;
   if(!run.on) m.textContent = run.finished ? 'De nuevo' : 'Empezar';
   else if(run.paused) m.textContent = 'Seguir';
-  else if(inTurn){ m.textContent = 'Ya lo dije'; m.classList.add('turn'); }
+  else if(inTurn){ m.textContent = turn.mode === 'type' ? 'Listo' : 'Ya lo dije'; m.classList.add('turn'); }
   else if(turn && turn.done) m.textContent = 'Seguir';
   else m.textContent = 'Pausar';
   $('#hint').disabled = !inTurn; $('#peek').disabled = !inTurn;
   $('#pause').hidden = !(run.on && !run.paused && turn);
   document.body.classList.toggle('running', run.on);
+  const typing = run.on && advMode() === 'type';
+  $('#typeBox').hidden = !typing; document.body.classList.toggle('typing', typing);
+  $('#typeBox').classList.toggle('turn', !!(inTurn && turn.mode === 'type'));
+  $('#typeIn').placeholder = inTurn && turn.mode === 'type' ? 'Escribí tu línea…' : 'Esperá tu pie…';
 }
 
 /* ---------- voz sintética ---------- */
@@ -1228,9 +1241,10 @@ function myTurn(it, tok){
   return new Promise(resolve => {
     turn = {it, tok, resolve, helped:false, done:false, prev:'', cur:'', heardSet:new Set(), rec:null};
     maskLine(it);
-    const mode = advMode();
+    const mode = advMode(); turn.mode = mode;
     if(mode==='mic'){ status('listen', 'Tu turno', 'Decí tu línea, te escucho'); startRec(turn); }
     else if(mode==='time'){ status('wait', 'Tu turno', 'Decila en voz alta, sigo solo'); startTimer(turn); }
+    else if(mode==='type'){ status('listen', 'Tu turno', 'Escribí tu línea'); typeTurn(turn); }
     else status('wait', 'Tu turno', 'Decila en voz alta y tocá Ya lo dije');
     controls();
   });
@@ -1240,10 +1254,12 @@ function endTurn(how){
   t.done = true; stopRec(t); stopTimer(); revealAll(t.it);
   const clean = !t.helped; stats.done++; if(clean) stats.clean++;
   setBadge(t.it, clean ? 'ok' : 'help'); updateCount();
-  if(how==='mic'){ status('', 'Bien', 'Sigue la escena'); bar(1); } else status('', 'Revisá tu línea', 'Sigo en un momento');
+  const heardOk = how==='mic' || (how==='type' && clean);
+  if(heardOk){ status('', 'Bien', 'Sigue la escena'); bar(1); } else status('', 'Revisá tu línea', 'Sigo en un momento');
   controls();
+  if(how==='type') $('#typeIn').value = '';   // lo que escribas durante la pausa queda para tu próxima línea
   t.next = () => { if(t.tok === run.token && turn === t){ turn = null; t.resolve(); } };
-  setTimeout(t.next, how==='mic' ? 700 : 1300 + t.it.exp.length*120);
+  setTimeout(t.next, heardOk ? 700 : 1300 + t.it.exp.length*120);
 }
 function giveHint(){ const t = turn; if(!t || t.done) return; t.helped = true; const e = [...tokEls(t.it)].find(x => x.classList.contains('hid') || x.classList.contains('ini')); if(e) e.classList.remove('hid','ini'); }
 function peekLine(){ const t = turn; if(!t || t.done) return; t.helped = true; revealAll(t.it); }
@@ -1292,6 +1308,7 @@ function startRec(t){
 }
 function stopRec(t){ if(t && t.rec){ const r = t.rec; t.rec = null; r.onend = null; r.onresult = null; r.onerror = null; try { r.abort(); } catch(e) {} } }
 function evaluate(t, heardText, isFinal){
+  if(t.mode === 'type') return typeEval(t, heardText, isFinal);
   heardShow(heardText.trim().split(/\s+/).slice(-12).join(' '));
   const exp = t.it.exp, n = exp.length; if(!n){ endTurn('mic'); return; }
   lcsMatch(exp, heardWords(heardText)).forEach(k => { if(!t.heardSet.has(k)){ t.heardSet.add(k); revealTok(t.it, exp[k].t, true); } });
@@ -1300,11 +1317,51 @@ function evaluate(t, heardText, isFinal){
   if(count >= need && ([...t.heardSet].some(k => k >= n-2) || isFinal)) endTurn('mic');
 }
 
+/* escribir con el teclado */
+// cuenta solo palabras terminadas, recalculando con lo que hay en el campo (si borrás, se descuenta)
+function typeEval(t, text, final){
+  const exp = t.it.exp, n = exp.length; if(!n){ endTurn('type'); return; }
+  let hw = heardWords(text);
+  const done = final || /[\s.,;:!?…"»”)]$/.test(text);
+  if(!done && hw.length && hw[hw.length-1] !== exp[n-1].w) hw = hw.slice(0, -1);   // la palabra que estás escribiendo todavía no cuenta
+  const got = lcsMatch(exp, hw);
+  got.forEach(k => { if(!t.heardSet.has(k)) revealTok(t.it, exp[k].t, true); });
+  t.heardSet = got;
+  const count = got.size; bar(count/n);
+  const need = n <= 2 ? n : Math.ceil(n*S.strict);
+  if(!final && count >= need && got.has(n-1)) endTurn('type');   // sigue solo cuando escribiste la última palabra
+}
+function typeTurn(t){
+  const inp = $('#typeIn');
+  try { inp.focus({preventScroll:true}); } catch(e) {}
+  if(inp.value.trim()) evaluate(t, inp.value, false);   // lo que ya habías empezado a escribir
+}
+$('#typeIn').addEventListener('input', () => { const t = turn; if(t && !t.done && t.mode === 'type') evaluate(t, $('#typeIn').value, false); });
+function typeSubmit(){
+  const t = turn;
+  if(t && !t.done && t.mode === 'type'){
+    typeEval(t, $('#typeIn').value, true);
+    if(t.done) return;
+    const n = t.it.exp.length, need = n <= 2 ? n : Math.ceil(n*S.strict);
+    if(t.heardSet.size < need) t.helped = true;     // incompleta: queda "Con ayuda"
+    endTurn('type'); return;
+  }
+  if(t && t.done && t.mode === 'type') return t.next();
+}
+$('#typeBox').onsubmit = e => { e.preventDefault(); typeSubmit(); };
+// tocar Listo, Pista, Ver línea, etc. mientras escribís no cierra el teclado
+['#typeGo', '#mainBtn', '#hint', '#peek', '#skip', '#back'].forEach(id => $(id).addEventListener('mousedown', e => { if(document.activeElement === $('#typeIn')) e.preventDefault(); }));
+/* el teclado del celular no tiene que tapar la consola */
+if(window.visualViewport){
+  const fitVV = () => { const h = visualViewport.height; document.body.style.height = (h < innerHeight - 40) ? h + 'px' : ''; if(h < innerHeight - 40) window.scrollTo(0, 0); };
+  visualViewport.addEventListener('resize', fitVV);
+}
+
 /* ---------- botones del ensayo ---------- */
 $('#mainBtn').onclick = () => {
   if(!run.on) return start();
   if(run.paused) return resume();
-  if(turn && !turn.done) return endTurn('tap');
+  if(turn && !turn.done) return turn.mode === 'type' ? typeSubmit() : endTurn('tap');
   if(turn && turn.done) return turn.next();
   pause();
 };
@@ -1346,9 +1403,10 @@ function advHint(){
   const h = {
     mic: SR ? 'Escucha tu voz y sigue cuando dijiste la línea. Necesita internet. Si el micrófono está bloqueado o no hay señal, pasa a modo toque.' : 'Este navegador no reconoce voz. Usá Chrome (Android) o Safari (iPhone), o elegí otro modo.',
     time: 'Te da un tiempo según el largo de la línea, te la muestra y sigue.',
-    tap: 'Decís la línea y tocás Ya lo dije para verla y seguir.'
+    tap: 'Decís la línea y tocás Ya lo dije para verla y seguir.',
+    type: 'Escribís tu línea con el teclado: las palabras se destapan a medida que acertás. Sigue solo al completarla, o apretá Enter. No hacen falta tildes ni mayúsculas.'
   };
-  $('#advHint').textContent = h[S.adv]; $('#strictField').hidden = S.adv !== 'mic';
+  $('#advHint').textContent = h[S.adv]; $('#strictField').hidden = S.adv !== 'mic' && S.adv !== 'type';
 }
 $('#rate').oninput = e => { S.rate = +e.target.value; $('#rateV').textContent = '· ' + S.rate.toFixed(2) + '×'; save(); };
 $('#voiceSel').onchange = e => { S.voiceURI = e.target.value; save(); hush(); sayOne(ttsText(LINES[0] ? LINES[0].p.filter(x=>x.s).map(x=>x.s).join(' ').slice(0,80) : 'Hola'), {p:1, r:1}); };
