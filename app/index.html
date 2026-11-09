@@ -80,11 +80,10 @@ h4{font-weight:700;font-size:13px;letter-spacing:.12em;text-transform:uppercase;
 .inst .x{float:right;background:none;border:0;color:var(--mute);font-size:16px;padding:0 0 4px 10px}
 .net{display:none;margin:12px 0 0;font-size:13px;color:var(--mute)}
 html.offline .net{display:block}
-.moved{margin:16px 0 4px;background:var(--marker);color:#1b1712;border-radius:14px;padding:14px 16px;font-size:15px;line-height:1.45}
-.moved b{font-weight:700}
-.moved ol{margin:8px 0 12px;padding-left:20px}
-.moved .row2{margin-top:0}
-.moved .btn{background:#1b1712;color:var(--marker);border-color:#1b1712;text-align:center;text-decoration:none;display:block}
+.cafe{display:flex;align-items:center;gap:12px;margin-top:22px;padding:12px 14px;border:1px solid var(--rule);border-radius:12px;background:var(--panel);color:var(--ink);text-decoration:none;font-size:14px;line-height:1.35}
+.cafe svg{width:26px;height:26px;flex:none;color:var(--marker)}
+.cafe b{display:block;font-weight:700;font-size:15px}
+.cafe span{color:var(--mute)}
 .foot{font-size:13px;color:var(--mute);line-height:1.45;margin-top:22px}
 
 /* revisión */
@@ -230,6 +229,7 @@ input[type=range]{width:100%;accent-color:var(--red)}
   <div class="obras" id="obras"></div>
   <div class="tools"><button class="btn" id="expBtn">Guardar copia</button><button class="btn" id="impBtn">Restaurar copia</button></div>
   <input type="file" id="impIn" class="vh" accept="application/json,.json">
+  <a class="cafe" id="cafe" hidden target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M8 3v2M12 3v2"/></svg><div><b>Invitame un cafecito</b><span>¿Te sirve el Ensayador? Con un cafecito me ayudás a mantenerlo y sumarle cosas.</span></div></a>
   <p class="foot">Las obras quedan guardadas solo en este teléfono o navegador: usá “Guardar copia” para no perderlas si cambiás de equipo. Si el PDF es una foto escaneada no tiene texto para leer: exportalo con texto o pegá el texto.</p>
 </div></section>
 
@@ -1528,6 +1528,10 @@ addEventListener('appinstalled', () => { $('#instAnd').hidden = true; });
 const netPaint = () => { document.documentElement.classList.toggle('offline', !navigator.onLine); if(navigator.onLine && micNetFail){ micNetFail = false; micBlocked = micBlockedReal; } };
 addEventListener('online', netPaint); addEventListener('offline', netPaint); netPaint();
 if('serviceWorker' in navigator && location.protocol !== 'file:'){ addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {})); }
+
+/* ---------- cafecito ---------- */
+const CAFECITO = '';   // poné acá tu enlace, por ejemplo 'https://cafecito.app/tu-usuario'
+if(/^https:\/\/cafecito\.app\/[\w.-]+\/?$/.test(CAFECITO)){ $('#cafe').href = CAFECITO; $('#cafe').hidden = false; }
 
 /* ---------- arranque ---------- */
 renderLib();
