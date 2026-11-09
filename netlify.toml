@@ -1,4 +1,7 @@
-# Netlify publica la carpeta app/ tal cual, sin compilar nada.
+# El Ensayador se mudó a GitHub Pages: https://jaimecarlos998-web.github.io/ensayador/
+# Netlify ya no compila: "ignore" con salida 0 saltea cada publicación (no gasta créditos).
+# El sitio viejo queda con el aviso de mudanza que se publicó por última vez.
 [build]
   publish = "app"
   command = ""
+  ignore = "exit 0"
