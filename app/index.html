@@ -139,7 +139,10 @@ body.running .it.cur,.it.cur{opacity:1;background:var(--panel);border-left-color
 /* consola */
 .dock{border-top:1px solid var(--rule);background:var(--panel);padding:10px 16px calc(env(safe-area-inset-bottom) + 12px)}
 /* deja lugar para el cartel 'Powered by Netlify' que Netlify pega abajo a la derecha */
-html.netlify .dock{padding-bottom:calc(env(safe-area-inset-bottom) + 68px)}
+/* cartel "Powered by Netlify" (abajo a la derecha, plan gratis): dejar libre esa franja en todas las pantallas */
+html.netlify .dock{padding-bottom:calc(env(safe-area-inset-bottom) + 76px)}
+html.netlify .screen{padding-bottom:calc(env(safe-area-inset-bottom) + 100px)}
+html.netlify .sheet-in{padding-bottom:calc(env(safe-area-inset-bottom) + 84px)}
 .status{display:flex;align-items:center;gap:10px;min-height:26px}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--mute);flex:none}
 .dot.speak{background:var(--red)}
