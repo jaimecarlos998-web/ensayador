@@ -7,7 +7,7 @@
 <script>(function(){var t;try{t=localStorage.getItem('ensayapp-theme')}catch(e){}if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t})()</script>
 <link rel="stylesheet" href="fonts/fonts.css">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#101631" id="themeColor">
+<meta name="theme-color" content="#15120f" id="themeColor">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="EnsayApp">
@@ -16,16 +16,16 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <style>
 :root{
-  /* Modo oscuro "Función de noche": azul noche, coral y resaltador menta.
-     Modo claro "Libreto": papel, tinta azul y resaltador amarillo.
+  /* Modo oscuro "Escenario": sala a oscuras, telón rojo y resaltador amarillo.
+     Modo claro "Libreto": papel, tinta azul y resaltador celeste.
      Una columna: pantallas apiladas (biblioteca, revisión, ensayo) con consola fija abajo al ensayar. */
-  --bg:#101631; --panel:#18204a; --btn:#1c2550; --ink:#e9ecf7; --mute:#a7aecb; --rule:#2c3566;
-  --red:#ff6f59; --on-pri:#101631;          /* color principal (logo, botón principal) y el texto encima */
-  --marker:#6fe3c4; --on:#101631;           /* resaltador (tu letra) y el texto encima */
-  --hl-ink:#6fe3c4;                          /* texto destacado sobre el fondo */
-  --tilde:#6fe3c4; --ok:#7fe0a0; --ok-bg:rgba(127,224,160,.16); --help-bg:rgba(111,227,196,.14);
-  --danger:#ff8a78; --err-bg:rgba(255,111,89,.14); --err-bd:rgba(255,111,89,.5); --err-fg:#ffc4ba;
-  --hid:rgba(16,22,49,.42); --code-bg:#0b1027; --start-bg:rgba(255,255,255,.04); --scrim:rgba(5,8,22,.72); --chip-sub:#1d5a4c;
+  --bg:#15120f; --panel:#1f1b17; --btn:#29231e; --ink:#f1ebe0; --mute:#a1988c; --rule:#35302a;
+  --red:#e2432c; --on-pri:#ffffff;          /* color principal (logo, botón principal) y el texto encima */
+  --marker:#ffe45c; --on:#1b1712;           /* resaltador (tu letra) y el texto encima */
+  --hl-ink:#ffe45c;                          /* texto destacado sobre el fondo */
+  --tilde:#ffe45c; --dot-turn:#ffe45c; --ok:#7fd08f; --ok-bg:rgba(127,208,143,.16); --help-bg:rgba(255,228,92,.14);
+  --danger:#ff7a66; --err-bg:rgba(226,67,44,.14); --err-bd:rgba(226,67,44,.5); --err-fg:#ffc9bf;
+  --hid:rgba(27,23,18,.2); --code-bg:#110e0c; --start-bg:rgba(255,255,255,.03); --scrim:rgba(10,8,6,.72); --chip-sub:#5a4d1a;
   --display:"Alfa Slab One", Rockwell, "Roboto Slab", Georgia, serif;
   --body:"Literata", Georgia, "Times New Roman", serif;
   --ui:"Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
@@ -34,11 +34,11 @@
 :root[data-theme="light"]{
   --bg:#fbf8f1; --panel:#f3eee3; --btn:#ffffff; --ink:#1b2440; --mute:#5b6480; --rule:#e2dccd;
   --red:#1f3a6e; --on-pri:#fbf8f1;
-  --marker:#ffd23f; --on:#1b2440;
+  --marker:#b9dcff; --on:#1b2440;
   --hl-ink:#1f3a6e;
-  --tilde:#e0a800; --ok:#1e7a52; --ok-bg:#dff1e7; --help-bg:#fff2bf;
+  --tilde:#3b82c4; --dot-turn:#3b82c4; --ok:#1e7a52; --ok-bg:#dff1e7; --help-bg:#dcecff;
   --danger:#b3261e; --err-bg:#fbe3df; --err-bd:#e8a497; --err-fg:#8a2414;
-  --hid:rgba(27,36,64,.16); --code-bg:#ffffff; --start-bg:rgba(31,58,110,.05); --scrim:rgba(27,36,64,.45); --chip-sub:#6b5300;
+  --hid:rgba(27,36,64,.16); --code-bg:#ffffff; --start-bg:rgba(31,58,110,.05); --scrim:rgba(27,36,64,.45); --chip-sub:#23507e;
   color-scheme:light;
 }
 *{box-sizing:border-box}
@@ -55,7 +55,7 @@ header{padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;border-bottom:1px
 .acc{position:relative;display:inline-block}
 .acc svg{position:absolute;left:52%;top:-.2em;width:.24em;height:.17em;transform:translateX(-30%)}
 .acc polygon{fill:var(--tilde)}
-.logo{width:40px;height:40px;border-radius:10px;overflow:hidden;flex:none;position:relative;background:#1c2550}
+.logo{width:40px;height:40px;border-radius:10px;overflow:hidden;flex:none;position:relative;background:#e2432c}
 .logo i{position:absolute;display:block;height:3px;border-radius:1.5px}
 .theme-sq .sun{display:none}
 :root[data-theme="dark"] .theme-sq .sun{display:block}
@@ -171,8 +171,8 @@ body.running .it.cur,.it.cur{opacity:1;background:var(--panel);border-left-color
 .status{display:flex;align-items:center;gap:10px;min-height:26px}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--mute);flex:none}
 .dot.speak{background:var(--red)}
-.dot.listen{background:var(--marker);animation:pulse 1s ease-in-out infinite}
-.dot.wait{background:var(--marker)}
+.dot.listen{background:var(--dot-turn);animation:pulse 1s ease-in-out infinite}
+.dot.wait{background:var(--dot-turn)}
 @keyframes pulse{50%{transform:scale(1.5);opacity:.6}}
 .stxt{font-weight:600;font-size:15.5px;line-height:1.25;flex:1;min-width:0}
 .stxt small{display:block;font-weight:500;color:var(--mute);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -223,7 +223,7 @@ input[type=range]{width:100%;accent-color:var(--red)}
 <body>
 <header>
   <button class="sq" id="homeBtn" aria-label="Volver a mis obras" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
-  <span class="logo" id="logo" aria-hidden="true"><i style="left:8px;top:11px;width:24px;background:#e9ecf7"></i><i style="left:5.5px;top:16.6px;width:29px;height:6.5px;border-radius:1px;background:#6fe3c4;transform:rotate(-3deg)"></i><i style="left:8px;top:18.4px;width:18px;background:#101631"></i><i style="left:8px;top:26.5px;width:21px;background:#ff6f59"></i></span>
+  <span class="logo" id="logo" aria-hidden="true"><i style="left:8px;top:11px;width:24px;background:#f1ebe0"></i><i style="left:5.5px;top:16.6px;width:29px;height:6.5px;border-radius:1px;background:#ffe45c;transform:rotate(-3deg)"></i><i style="left:8px;top:18.4px;width:18px;background:#15120f"></i><i style="left:8px;top:26.5px;width:21px;background:#f1ebe0"></i></span>
   <div class="brand" id="brand"><span class="wm" aria-label="EnsayApp">Ensay<span class="acc"><svg viewBox="0 0 40 30" aria-hidden="true"><polygon points="15,30 29,0 39,0 24,30"></polygon></svg>A</span>pp</span><small id="brandSub">Aprendé tu letra</small></div>
   <div class="where" id="where" hidden><b id="whereB"></b><br><span id="count"></span></div>
   <button class="sq theme-sq" id="themeBtn" aria-label="Cambiar entre modo claro y oscuro" style="margin-left:auto"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg></button>
@@ -1697,7 +1697,7 @@ if(/^https:\/\/cafecito\.app\/[\w.-]+\/?$/.test(CAFECITO)){ $('#cafe').href = CA
 /* ---------- modo claro / oscuro ---------- */
 function applyTheme(t, save){
   document.documentElement.dataset.theme = t;
-  $('#themeColor').content = t === 'dark' ? '#101631' : '#fbf8f1';
+  $('#themeColor').content = t === 'dark' ? '#15120f' : '#fbf8f1';
   $('#segTheme').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === t)));
   if(save){ try { localStorage.setItem('ensayapp-theme', t); } catch(e) {} }
 }

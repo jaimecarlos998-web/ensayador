@@ -1,6 +1,6 @@
 # EnsayApp
 
-App web para ensayar obras de teatro (antes "Ensayador"): cargás el PDF del guion, elegís tu personaje y el teléfono lee a los demás y espera tu parte. Se instala como app (PWA), funciona sin internet y tiene modo claro ("Libreto") y oscuro ("Función de noche").
+App web para ensayar obras de teatro (antes "Ensayador"): cargás el PDF del guion, elegís tu personaje y el teléfono lee a los demás y espera tu parte. Se instala como app (PWA), funciona sin internet y tiene modo claro ("Libreto") y oscuro ("Escenario").
 
 ## Estructura
 
