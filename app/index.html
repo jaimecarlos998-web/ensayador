@@ -149,6 +149,9 @@ html.offline .net{display:block}
 .ln .who i{text-transform:none;letter-spacing:0;font-weight:500}
 .ln .tx{font-family:var(--body);font-size:17.5px;line-height:1.55;margin-top:2px;max-width:65ch}
 .ln.mine .who{color:var(--hl-ink)}
+.ln.cont{padding-top:3px}
+.ln.cont.para{margin-top:10px}
+.ln.cont .who>span:not(.badge){display:none}
 .ln.mine .tx .s{background:var(--marker);color:var(--on);-webkit-box-decoration-break:clone;box-decoration-break:clone;padding:1px 3px;border-radius:2px}
 .tx .d{font-style:italic;color:var(--mute);font-size:.86em}
 .tx .d.g{font-style:normal}
@@ -256,7 +259,7 @@ input[type=range]{width:100%;accent-color:var(--red)}
 <section class="screen" id="paste" hidden><div class="wrap">
   <h2>Pegar texto</h2>
   <div class="field" style="margin-bottom:12px"><label for="pasteTitle">Nombre de la obra</label><input class="tinput" id="pasteTitle" placeholder="Por ejemplo: La casa de Bernarda Alba"></div>
-  <textarea class="editor" id="pasteTxt" placeholder="Pegá acá el guion. Funciona con cualquiera de estos formatos:&#10;&#10;JUAN. Hola, ¿qué tal?&#10;María: Bien, ¿y vos?&#10;&#10;PEDRO&#10;Yo también estoy.&#10;&#10;(Sale.)"></textarea>
+  <textarea class="editor" id="pasteTxt" placeholder="Pegá acá el guion. Funciona con cualquiera de estos formatos:&#10;&#10;JUAN. Hola, ¿qué tal?&#10;María: Bien, ¿y vos?&#10;&#10;PEDRO&#10;Yo también estoy.&#10;&#10;(Sale.)&#10;&#10;Si pegás un monólogo o un texto sin nombres, lo tomo como tuyo y lo separo por oraciones."></textarea>
   <div class="row2"><button class="btn" id="pasteCancel">Cancelar</button><button class="btn primary" id="pasteGo">Analizar</button></div>
 </div></section>
 
@@ -325,6 +328,8 @@ input[type=range]{width:100%;accent-color:var(--red)}
       <select id="langSel"><option value="es-AR">Español (Argentina)</option><option value="es-ES">Español (España)</option><option value="es-MX">Español (México)</option><option value="en-US">English</option><option value="pt-BR">Português</option><option value="it-IT">Italiano</option><option value="fr-FR">Français</option></select></div>
     <div class="field"><label for="rate">Velocidad de las otras voces <span id="rateV"></span></label><input type="range" id="rate" min="0.7" max="1.5" step="0.05"></div>
     <div class="field"><label for="voiceSel">Voz</label><select id="voiceSel"></select></div>
+    <div class="field"><label class="tog" for="splitSent">Ensayar de a una oración<input type="checkbox" id="splitSent"></label>
+      <span class="hint">Corta tus parlamentos largos (monólogos) en oraciones y te las pide una por una.</span></div>
     <label class="tog" for="readDirs">Leer las acotaciones en voz alta<input type="checkbox" id="readDirs"></label>
     <label class="tog" for="onlyMine">Saltar las escenas donde no estás<input type="checkbox" id="onlyMine"></label>
     <div class="field"><span class="lbl">Aspecto</span>
@@ -961,7 +966,88 @@ function review(p, info){
   return out;
 }
 
-return {extractPDF, linesToCanonical, textLines, classify, parseCanonical, isUpperLine, numEs, review};
+/* ---------- 5. monólogos y oraciones ---------- */
+const ABBR = /(?:^|[\s(])(?:sr|sra|srta|sres|dr|dra|lic|ing|prof|etc|ud|uds|vd|vds|sto|sta|pág|pag|cap|av|núm|num|nro|mr|mrs|ms|st|vs|ej|aprox|tel)\.$/i;
+const ENDS = /[.!?…]["»”’)\]]*$/;
+const words = s => (s.match(/[\p{L}\p{N}]+/gu) || []).length;
+// corta un texto en oraciones (respeta abreviaturas e iniciales)
+function sentencesOf(s){
+  const out = []; let start = 0, m;
+  const re = /[.!?…]+["»”’)\]]*(?=\s+["«“¿¡(—–\-]*[A-ZÁÉÍÓÚÑÜ0-9])/g;
+  while((m = re.exec(s))){
+    const end = m.index + m[0].length, piece = s.slice(start, end);
+    if(m[0] === '.' && (ABBR.test(piece) || /(?:^|\s)[A-ZÁÉÍÓÚÑ]\.$/.test(piece))) continue;
+    out.push(piece.trim()); start = end;
+  }
+  out.push(s.slice(start).trim());
+  // oraciones muy largas (verso, enumeraciones): cortar en ; o :
+  return out.filter(Boolean).flatMap(x => {
+    if(words(x) <= 40) return [x];
+    const res = []; let cur = '';
+    x.split(/(?<=[;:])\s+/).forEach(c => { if(cur && words(cur) >= 12 && words(c) >= 8){ res.push(cur); cur = c; } else cur = cur ? cur + ' ' + c : c; });
+    if(cur) res.push(cur); return res;
+  });
+}
+// parts de un parlamento ([{s}|{d}]) -> grupos de parts, uno por oración
+function splitSentences(parts){
+  const groups = []; let cur = null, closed = false;
+  const hasS = g => g && g.some(x => x.s);
+  parts.forEach(pt => {
+    if(pt.d != null){ if(!cur || (hasS(cur) && closed)){ cur = []; groups.push(cur); } cur.push(pt); return; }
+    sentencesOf(pt.s).forEach(sn => {
+      if(!cur || (hasS(cur) && closed)){ cur = []; groups.push(cur); }
+      cur.push({s: sn}); closed = ENDS.test(sn);
+    });
+  });
+  // oraciones de una o dos palabras ("¡Ah!", "Nada más.") van con la anterior (la primera, con la siguiente)
+  for(let i = 0; i < groups.length && groups.length > 1; i++){
+    const n = groups[i].filter(x => x.s).reduce((a, x) => a + words(x.s), 0);
+    if(n >= 3) continue;
+    if(i > 0){ groups[i-1] = groups[i-1].concat(groups[i]); groups.splice(i, 1); i--; }
+    else { groups[1] = groups[0].concat(groups[1]); groups.splice(0, 1); i--; }
+  }
+  // juntar textos seguidos dentro de un mismo grupo
+  return groups.map(g => g.reduce((a, x) => { const l = a[a.length-1]; if(x.s && l && l.s) l.s += ' ' + x.s; else a.push(Object.assign({}, x)); return a; }, []));
+}
+// texto suelto (sin nombres de personaje) -> formato del ensayador, un párrafo por parlamento
+function monologue(raw, name){
+  let lines = raw.replace(/\r/g, '').split('\n').map(x => x.replace(/\s+/g, ' ').trim());
+  while(lines.length && !lines[0]) lines.shift();
+  let title = '';
+  const cm = (lines[0] || '').match(CANON_RE);
+  if(!name && cm && isName(cm[1]) && words(cm[1]) <= 3 && cm[3].trim()){ name = clean(cm[1]).toUpperCase(); const pre = new RegExp('^' + cm[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*(\\([^)]*\\))?\\s*:\\s*', 'i'); lines = lines.map(x => x.replace(pre, '')); }
+  const f = (lines[0] || '').replace(/[:.]$/, '');
+  if(!name && f && f.length <= 30 && isUpperLine(f) && isName(f) && !HEAD_RE.test(f) && lines.slice(1).some(Boolean) && words(f) <= 3){ name = clean(f).toUpperCase(); lines.shift(); }
+  const blank = lines.some((x, i) => !x && lines[i-1] && lines.slice(i).some(Boolean));
+  const paras = []; let cur = '';
+  const push = () => { if(cur.trim()) paras.push(cur.trim()); cur = ''; };
+  lines.forEach((x, i) => {
+    if(!x){ push(); return; }
+    if(/^\d{1,4}$/.test(x)) return;
+    if(cur && /[A-Za-zÁÉÍÓÚÑáéíóúñ]-$/.test(cur) && /^[a-záéíóúñ]/.test(x)) cur = cur.slice(0, -1) + x;
+    else cur = cur ? cur + ' ' + x : x;
+    if(!blank && ENDS.test(x) && lines[i+1] && /^["«“¿¡(—–\-]*[A-ZÁÉÍÓÚÑ]/.test(lines[i+1])) push();
+  });
+  push();
+  if(paras.length > 1 && paras[0].length < 60 && !/[.!?…:,;]$/.test(paras[0]) && words(paras[0]) <= 8) title = paras.shift();
+  name = name || 'MONÓLOGO';
+  const text = paras.map(t => /^\([^()]*\)$/.test(t) ? t : `${name}: ${t}`).join('\n\n') + '\n';
+  return {text, name, title};
+}
+// páginas de PDF -> texto con párrafos (para monólogos)
+function pdfText(pages){
+  return pages.map(pg => {
+    const L = pg.lines.filter(l => l.t.trim());
+    const gaps = []; for(let i = 1; i < L.length; i++){ const g = (L[i-1].y - L[i].y) / (L[i].size || 10); if(g > 0) gaps.push(g); }
+    const q = (a, f) => { if(!a.length) return 0; const b = [...a].sort((x, y) => x - y); return b[Math.floor((b.length - 1) * f)]; };
+    const med = q(gaps, 0.25) || 1.3;   // interlineado normal (los párrafos cortos inflan la mediana)
+    const base = q(L.map(l => l.x0 || 0), 0.2);
+    return L.map((l, i) => { const g = i ? (L[i-1].y - l.y) / (l.size || 10) : 0; const ind = (l.x0 || 0) > base + 8 && i && ENDS.test(L[i-1].t.trim());
+      return (i && (g > med * 1.45 || ind) ? '\n' : '') + l.t; }).join('\n');
+  }).join('\n');
+}
+
+return {extractPDF, linesToCanonical, textLines, classify, parseCanonical, isUpperLine, numEs, review, sentencesOf, splitSentences, monologue, pdfText};
 })();
 if(typeof module !== 'undefined') module.exports = Core;
 
@@ -1061,7 +1147,8 @@ $('#pdfIn').onchange = async e => {
   try {
     if(/\.txt$/i.test(file.name) || file.type==='text/plain'){
       const txt = await file.text();
-      return analyze(Core.classify(Core.textLines(txt), 12), baseTitle);
+      const res = Core.classify(Core.textLines(txt), 12);
+      return fewLines(res.text) ? asMono(txt, baseTitle) : analyze(res, baseTitle);
     }
     progress('Preparando el lector de PDF…', 0.05);
     const lib = await ensurePdfJs();
@@ -1079,10 +1166,7 @@ $('#pdfIn').onchange = async e => {
     if(!title || /pdf\.?js|viewer|^document|^documento|^sin t[ií]tulo|^untitled|microsoft|\.-|^[^,]+,[^,]+$/i.test(title) || title.length > 80) title = baseTitle;
     else if(title === title.toUpperCase() || title === title.toLowerCase()) title = niceTitle(title);
     const res = Core.linesToCanonical(r.pages);
-    if(Core.parseCanonical(res.text, {}).items.filter(i => i.k==='line').length < 3){
-      libError('Leí el texto del PDF pero no encontré parlamentos con nombre de personaje. Si el formato es poco común, copiá el texto y usá "Pegar texto": ahí podés corregirlo a mano con el formato NOMBRE: texto.');
-      return;
-    }
+    if(Core.parseCanonical(res.text, {}).items.filter(i => i.k==='line').length < 3) return asMono(Core.pdfText(r.pages), title, title === baseTitle);
     res.pages = r.numPages;
     analyze(res, title);
   } catch(err){
@@ -1094,7 +1178,9 @@ $('#pasteBtn').onclick = () => { $('#pasteTxt').value=''; $('#pasteTitle').value
 $('#pasteCancel').onclick = () => show('lib');
 $('#pasteGo').onclick = () => {
   const t = $('#pasteTxt').value; if(!t.trim()) { $('#pasteTxt').focus(); return; }
-  analyze(Core.classify(Core.textLines(t), 12), $('#pasteTitle').value.trim() || 'Obra sin nombre');
+  const res = Core.classify(Core.textLines(t), 12), tt = $('#pasteTitle').value.trim();
+  if(fewLines(res.text)) return asMono(t, tt);
+  analyze(res, tt || 'Obra sin nombre');
 };
 
 /* ---------- revisión ---------- */
@@ -1103,8 +1189,13 @@ function analyze(res, title){
   DRAFT = {id: 'o' + Date.now().toString(36), title, text: res.text, aliases:{}, mine: [], lang:'es-AR', pos:0, marked: res.marked || [], pages: res.pages || 0, noMerge: []};
   const p = Core.parseCanonical(DRAFT.text, {});
   DRAFT.mine = DRAFT.marked.filter(n => p.chars.some(c => c.n===n));
+  if(res.mono) DRAFT.mono = true;
+  if(p.chars.length === 1){ DRAFT.mine = [p.chars[0].n]; DRAFT.split = true; }
   renderReview(); show('review');
 }
+// texto sin nombres de personaje: se toma como monólogo
+const asMono = (raw, title, preferText) => { const m = Core.monologue(raw); return analyze({text: m.text, mono: true}, (preferText && m.title) || title || m.title || 'Monólogo'); };
+const fewLines = text => Core.parseCanonical(text, {}).items.filter(i => i.k==='line').length < 2;
 function openReview(obra){ DRAFT = JSON.parse(JSON.stringify(obra)); DRAFT.marked = DRAFT.marked || []; renderReview(); show('review'); }
 function renderReview(){
   const d = DRAFT;
@@ -1114,10 +1205,10 @@ function renderReview(){
   const nLines = p.items.filter(i=>i.k==='line').length;
   const nScenes = p.items.filter(i=>i.k==='scene').length;
   const nDirs = p.items.filter(i=>i.k==='dir').length + p.items.filter(i=>i.k==='line').reduce((s,l)=>s+l.p.filter(x=>x.d!=null&&!x.g).length,0);
-  $('#rStats').innerHTML = `<span class="stat"><b>${p.chars.length}</b>personajes</span><span class="stat"><b>${nLines}</b>parlamentos</span>${(() => { const nA = p.items.filter(i=>i.k==='act' && !/^(FIN|TEL)/.test(i.t)).length; return nScenes ? `<span class="stat"><b>${nScenes}</b>escenas</span>` : nA ? `<span class="stat"><b>${nA}</b>${nA===1?'acto':'actos'}</span>` : ''; })()}<span class="stat"><b>${nDirs}</b>acotaciones</span>`;
+  $('#rStats').innerHTML = `<span class="stat"><b>${p.chars.length}</b>${p.chars.length===1?'personaje':'personajes'}</span><span class="stat"><b>${nLines}</b>${nLines===1?'parlamento':'parlamentos'}</span>${(() => { const nA = p.items.filter(i=>i.k==='act' && !/^(FIN|TEL)/.test(i.t)).length; return nScenes ? `<span class="stat"><b>${nScenes}</b>escenas</span>` : nA ? `<span class="stat"><b>${nA}</b>${nA===1?'acto':'actos'}</span>` : ''; })()}<span class="stat"><b>${nDirs}</b>acotaciones</span>`;
   const mk = d.marked.filter(n => raw.chars.some(c=>c.n===n));
-  $('#rMarked').hidden = !mk.length;
-  $('#rMarked').textContent = mk.length ? `Encontré texto resaltado en el PDF: parece ser la parte de ${mk.map(titleCase).join(' y ')}. Ya lo marqué como tu personaje.` : '';
+  $('#rMarked').hidden = !mk.length && !d.mono;
+  $('#rMarked').textContent = mk.length ? `Encontré texto resaltado en el PDF: parece ser la parte de ${mk.map(titleCase).join(' y ')}. Ya lo marqué como tu personaje.` : d.mono ? 'No encontré nombres de personajes, así que lo tomé como un monólogo: todo el texto es tuyo y lo vas a ensayar de a una oración. Si en realidad es una obra con varios personajes, tocá Editar el texto y poné NOMBRE: al principio de cada parlamento.' : '';
   const targets = raw.chars.map(c=>c.n);
   $('#rChars').innerHTML = raw.chars.map(c => {
     const to = d.aliases[c.n];
@@ -1195,6 +1286,7 @@ $('#edGo').onclick = () => {
   const names = new Set(p.chars.map(c=>c.n));
   Object.keys(DRAFT.aliases).forEach(k => { if(!names.has(k) || !names.has(DRAFT.aliases[k])) delete DRAFT.aliases[k]; });
   DRAFT.mine = DRAFT.mine.filter(n => names.has(n));
+  if(names.size > 1) delete DRAFT.mono;
   renderReview(); show('review');
 };
 $('#rGo').onclick = () => {
@@ -1216,7 +1308,14 @@ function norm(w){ return w.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
 
 function buildModel(){
   const p = Core.parseCanonical(OBRA.text, OBRA.aliases);
-  ITEMS = p.items; CHARS = p.chars;
+  p.items.forEach((it, k) => it.oi = k);
+  ITEMS = !OBRA.split ? p.items : p.items.flatMap(it => {
+    if(it.k !== 'line' || !it.c.some(c => OBRA.mine.includes(c))) return [it];
+    const g = Core.splitSentences(it.p);
+    return g.length < 2 ? [it] : g.map((pp, j) => Object.assign({}, it, {p: pp, part: j}));
+  });
+  ITEMS.forEach((it, k) => { const pr = ITEMS[k-1]; it.cont = it.k === 'line' && pr && pr.k === 'line' && pr.who === it.who && !it.aside; });
+  CHARS = p.chars;
   VOICE = {}; CHARS.forEach((c,i) => VOICE[c.n] = {p: PITCH[i % PITCH.length], r: RATE[i % RATE.length]});
   let act = '', scene = null, nScene = 0;
   SCENES = [];
@@ -1246,6 +1345,15 @@ function buildModel(){
   LINES = ITEMS.filter(it => it.k==='line');
 }
 const isMine = it => it.k==='line' && it.c.some(c => OBRA.mine.includes(c));
+// rearmar el guion (al cambiar personaje u oraciones) sin perder el lugar
+function rebuild(){
+  const at = ITEMS[run.idx] || {}; const oi = at.oi || 0, part = at.part || 0;
+  buildModel();
+  let i = ITEMS.findIndex(it => it.oi === oi && (it.part || 0) === part); if(i < 0) i = ITEMS.findIndex(it => it.oi >= oi);
+  run.idx = Math.max(0, i);
+  render(); paintStart(); setCur(run.idx, false); updateCount();
+}
+const posIndex = pos => { const i = ITEMS.findIndex(it => it.oi >= (pos || 0)); return i < 0 ? 0 : i; };
 const sceneHasMine = scn => LINES.some(l => l.scn===scn && isMine(l));
 function sceneLabelFor(i){
   const it = ITEMS[i]; if(!it) return '';
@@ -1262,13 +1370,13 @@ function itemHTML(it, mine, preview){
   if(it.k==='note') return `<div class="it note"${di}>${esc(it.t)}</div>`;
   if(it.k==='gap') return `<div class="it gap"${di}>[ … fragmento omitido … ]</div>`;
   const html = it.html || it.p.map(pt => pt.d!=null ? `<span class="d${pt.g?' g':''}">(${esc(pt.d)})</span>` : `<span class="s">${esc(pt.s)}</span>`).join(' ');
-  return `<div class="it ln${mine?' mine':''}"${di}><div class="who"><span>${esc(it.who)}${it.aside?` <i>· ${esc(it.aside)}</i>`:''}</span></div><div class="tx">${html}</div></div>`;
+  return `<div class="it ln${mine?' mine':''}${it.cont?' cont'+(it.part?'':' para'):''}"${di}><div class="who"><span>${esc(it.who)}${it.aside?` <i>· ${esc(it.aside)}</i>`:''}</span></div><div class="tx">${html}</div></div>`;
 }
 
 function openObra(o){
   OBRA = o; OBRA.lang = OBRA.lang || 'es-AR';
   buildModel();
-  run.idx = clamp(OBRA.pos || 0, 0, Math.max(0, ITEMS.length-1)); run.finished = false; run.on = false;
+  run.idx = clamp(posIndex(OBRA.pos), 0, Math.max(0, ITEMS.length-1)); run.finished = false; run.on = false;
   show('play');
   render();
   setCur(run.idx, false);
@@ -1385,7 +1493,7 @@ let turn = null, micBlocked = false, micBlockedReal = false, micNetFail = false,
 async function keepAwake(){ try { wakeLock = await navigator.wakeLock?.request('screen'); } catch(e) {} }
 function letSleep(){ try { wakeLock?.release(); } catch(e) {} wakeLock = null; }
 let posTimer = 0;
-function savePos(){ if(!OBRA) return; OBRA.pos = run.idx; if(OBRA.example) return; clearTimeout(posTimer); posTimer = setTimeout(() => { posTimer = 0; save(); }, 800); }
+function savePos(){ if(!OBRA) return; OBRA.pos = ITEMS[run.idx] ? ITEMS[run.idx].oi : 0; if(OBRA.example) return; clearTimeout(posTimer); posTimer = setTimeout(() => { posTimer = 0; save(); }, 800); }
 addEventListener('pagehide', () => { if(posTimer){ clearTimeout(posTimer); posTimer = 0; save(); } });
 
 function stopAll(){ run.token++; hush(); if(turn){ stopRec(turn); stopTimer(); turn = null; } }
@@ -1602,6 +1710,7 @@ $('#chips').onclick = e => {
   const c = b.dataset.c; OBRA.mine = OBRA.mine.includes(c) ? OBRA.mine.filter(x => x !== c) : [...OBRA.mine, c];
   b.setAttribute('aria-pressed', String(OBRA.mine.includes(c)));
   if(!OBRA.example) save();
+  if(OBRA.split){ rebuild(); return; }
   const keep = run.idx; render(); paintStart(); setCur(keep, false); updateCount();
 };
 function paintStart(){
@@ -1626,12 +1735,13 @@ $('#rate').oninput = e => { S.rate = +e.target.value; $('#rateV').textContent = 
 $('#voiceSel').onchange = e => { S.voiceURI = e.target.value; save(); hush(); sayOne(ttsText(LINES[0] ? LINES[0].p.filter(x=>x.s).map(x=>x.s).join(' ').slice(0,80) : 'Hola'), {p:1, r:1}); };
 $('#langSel').onchange = e => { OBRA.lang = e.target.value; if(!OBRA.example) save(); S.voiceURI = ''; loadVoices(); };
 $('#readDirs').onchange = e => { S.readDirs = e.target.checked; save(); };
+$('#splitSent').onchange = e => { OBRA.split = e.target.checked; if(!OBRA.example) save(); if(run.on) stopAll(); rebuild(); if(run.on) prepareMasks(run.idx); };
 $('#onlyMine').onchange = e => { S.onlyMine = e.target.checked; save(); };
 function openSheet(){
   if(run.on && !run.paused) pause();
   paintChips(); paintStart(); advHint();
   $('#rate').value = S.rate; $('#rateV').textContent = '· ' + (+S.rate).toFixed(2) + '×';
-  $('#readDirs').checked = S.readDirs; $('#onlyMine').checked = S.onlyMine;
+  $('#readDirs').checked = S.readDirs; $('#splitSent').checked = !!OBRA.split; $('#onlyMine').checked = S.onlyMine;
   $('#langSel').value = OBRA.lang || 'es-AR';
   $('#sheet').hidden = false;
 }
