@@ -55,7 +55,7 @@ header{padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;border-bottom:1px
 .acc{position:relative;display:inline-block}
 .acc svg{position:absolute;left:52%;top:-.2em;width:.24em;height:.17em;transform:translateX(-30%)}
 .acc polygon{fill:var(--tilde)}
-.logo{width:40px;height:40px;border-radius:10px;overflow:hidden;flex:none;position:relative;background:#e2432c}
+.logo{width:40px;height:40px;border-radius:10px;overflow:hidden;flex:none;position:relative;background:#15120f;box-shadow:inset 0 0 0 1px var(--rule)}
 .logo i{position:absolute;display:block;height:3px;border-radius:1.5px}
 .theme-sq .sun{display:none}
 :root[data-theme="dark"] .theme-sq .sun{display:block}
@@ -223,7 +223,7 @@ input[type=range]{width:100%;accent-color:var(--red)}
 <body>
 <header>
   <button class="sq" id="homeBtn" aria-label="Volver a mis obras" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
-  <span class="logo" id="logo" aria-hidden="true"><i style="left:8px;top:11px;width:24px;background:#f1ebe0"></i><i style="left:5.5px;top:16.6px;width:29px;height:6.5px;border-radius:1px;background:#ffe45c;transform:rotate(-3deg)"></i><i style="left:8px;top:18.4px;width:18px;background:#15120f"></i><i style="left:8px;top:26.5px;width:21px;background:#f1ebe0"></i></span>
+  <span class="logo" id="logo" aria-hidden="true"><i style="left:8px;top:11px;width:24px;background:#f1ebe0"></i><i style="left:5.5px;top:16.6px;width:29px;height:6.5px;border-radius:1px;background:#ffe45c;transform:rotate(-3deg)"></i><i style="left:8px;top:18.4px;width:18px;background:#15120f"></i><i style="left:8px;top:26.5px;width:21px;background:#e2432c"></i></span>
   <div class="brand" id="brand"><span class="wm" aria-label="EnsayApp">Ensay<span class="acc"><svg viewBox="0 0 40 30" aria-hidden="true"><polygon points="15,30 29,0 39,0 24,30"></polygon></svg>A</span>pp</span><small id="brandSub">Aprendé tu letra</small></div>
   <div class="where" id="where" hidden><b id="whereB"></b><br><span id="count"></span></div>
   <button class="sq theme-sq" id="themeBtn" aria-label="Cambiar entre modo claro y oscuro" style="margin-left:auto"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg></button>
