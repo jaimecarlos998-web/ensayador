@@ -1,10 +1,10 @@
-# Ensayador de obras
+# EnsayApp
 
-App web para ensayar obras de teatro: cargás el PDF del guion, elegís tu personaje y el teléfono lee a los demás y espera tu parte. Se instala como app (PWA) y funciona sin internet.
+App web para ensayar obras de teatro (antes "Ensayador"): cargás el PDF del guion, elegís tu personaje y el teléfono lee a los demás y espera tu parte. Se instala como app (PWA), funciona sin internet y tiene modo claro ("Libreto") y oscuro ("Función de noche").
 
 ## Estructura
 
-- `app/` — el sitio que se publica en GitHub Pages: https://jaimecarlos998-web.github.io/ensayador/ (ver `.github/workflows/pages.yml`).
+- `app/` — el sitio que se publica en GitHub Pages: https://jaimecarlos998-web.github.io/ensayapp/ (ver `.github/workflows/pages.yml`).
   - `index.html` — toda la app.
   - `sw.js` — service worker generado (no editar a mano).
   - `vendor/` — PDF.js 3.11.174. `fonts/` — tipografías locales. `icons/` — íconos de la app.

@@ -1,6 +1,6 @@
-# Ensayador — notas para trabajar en este repo
+# EnsayApp — notas para trabajar en este repo
 
-- **No subir a `main` sin el OK del dueño.** `main` se publica sola en GitHub Pages (https://jaimecarlos998-web.github.io/ensayador/, lo que usa el elenco) con `.github/workflows/pages.yml`.
+- **No subir a `main` sin el OK del dueño.** `main` se publica sola en GitHub Pages (https://jaimecarlos998-web.github.io/ensayapp/, lo que usa el elenco) con `.github/workflows/pages.yml`.
   Trabajar en una rama, contar qué cambió y esperar confirmación ("publicá") antes de pasarlo a `main`.
 - Antes de cada subida: `python3 tools/build_sw.py` (si no, los teléfonos con la app instalada siguen con la versión vieja).
 - La app es un solo archivo: `app/index.html`. El lector de guiones está en el bloque `const Core = (() => { ... })()`.

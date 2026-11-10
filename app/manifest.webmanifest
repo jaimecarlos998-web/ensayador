@@ -1,6 +1,6 @@
 {
-  "name": "Ensayador de obras",
-  "short_name": "Ensayador",
+  "name": "EnsayApp",
+  "short_name": "EnsayApp",
   "description": "Aprendé tu letra: el teléfono lee a los demás personajes y espera tu parte.",
   "lang": "es-AR",
   "start_url": "./",
@@ -8,11 +8,26 @@
   "id": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#15120f",
-  "theme_color": "#15120f",
+  "background_color": "#101631",
+  "theme_color": "#101631",
   "icons": [
-    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
-    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
-    {"src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }
